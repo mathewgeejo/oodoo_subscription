@@ -128,3 +128,16 @@ test("worker persists heartbeat and backs off failed jobs while billing healthy 
   assert.equal(await db.invoice.count({where: {subscriptionId: healthy.id}}), 1);
   assert.ok(await db.workerHeartbeat.findUnique({where: {id: "billing"}}));
 });
+test("worker closes expired paused contracts only when automatic closure is enabled", async () => {
+  const auto = await active("2026-01-04T00:00:00Z");
+  const manual = await active("2026-01-04T00:00:00Z");
+  for (const sub of [auto, manual]) {
+    await billSubscription(sub.id, jan);
+    await db.subscription.update({where: {id: sub.id}, data: {status: "PAUSED", canPause: true, nextBillingAt: null, autoClose: sub.id === auto.id}});
+  }
+  await runBillingBatch(new Date("2026-01-05T00:00:00Z"), 1000);
+  assert.equal((await db.subscription.findUniqueOrThrow({where: {id: auto.id}})).status, "CLOSED");
+  assert.equal((await db.subscription.findUniqueOrThrow({where: {id: manual.id}})).status, "PAUSED");
+  assert.equal(await db.invoice.count({where: {subscriptionId: auto.id}}), 1);
+  assert.equal(await db.auditEvent.count({where: {resourceId: auto.id, action: "subscription.closed"}}), 1);
+});

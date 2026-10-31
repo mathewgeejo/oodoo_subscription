@@ -11,6 +11,11 @@ export async function billSubscription(id: string, now = new Date(), actorId = "
     await tx.$queryRaw`SELECT "id" FROM "Subscription" WHERE "id" = ${id} FOR UPDATE`;
     const subscription = await tx.subscription.findUnique({where: {id}, include: {lines: true, customer: true}});
     if (!subscription) throw new AppError("NOT_FOUND", "Subscription not found", 404);
+    if (subscription.status === "PAUSED" && subscription.autoClose && subscription.expiresAt <= now) {
+      await tx.subscription.update({where: {id}, data: {status: "CLOSED", nextBillingAt: null, pendingAction: null, pendingActionAt: null, version: {increment: 1}}});
+      await tx.auditEvent.create({data: {actorId, action: "subscription.closed", resourceId: id, metadata: {reason: "expiry"}}});
+      return null;
+    }
     if (subscription.status !== "ACTIVE") return null;
     if (subscription.pendingActionAt && subscription.pendingActionAt <= now) {
       const status = subscription.pendingAction === "PAUSE" ? "PAUSED" : "CLOSED";
@@ -22,6 +27,7 @@ export async function billSubscription(id: string, now = new Date(), actorId = "
     const start = periodBoundary(subscription.startAt, subscription.cadence, index, subscription.billingTimezone);
     if (start >= subscription.expiresAt) {
       await tx.subscription.update({where: {id}, data: {nextBillingAt: null, ...(subscription.autoClose && now >= subscription.expiresAt ? {status: "CLOSED"} : {}), version: {increment: 1}}});
+      if (subscription.autoClose && now >= subscription.expiresAt) await tx.auditEvent.create({data: {actorId, action: "subscription.closed", resourceId: id, metadata: {reason: "expiry"}}});
       return null;
     }
     if (start > now) return null;
