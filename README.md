@@ -1,6 +1,6 @@
 # Brightloop Subscription Management
 
-Next.js/React/TypeScript with PostgreSQL and a separate billing worker. No Vite.
+Next.js/React/TypeScript with PostgreSQL and a separate billing worker. No Vite..
 
 Read [the shared plan](docs/PROJECT_PLAN.md) and your handoff: [Mathew](docs/MATHEW.md), [Lea](docs/LEA.md), [Pranav](docs/PRANAV.md).
 
@@ -18,7 +18,7 @@ Set `ADMIN_EMAIL`, `ADMIN_PASSWORD` and optionally `ADMIN_NAME` temporarily, the
 
 Run `npm run worker` as a separate process for recurring billing. It polls durable due dates every five seconds, retries failures with persisted backoff, and records a heartbeat. Admins inspect failures or request retries at `/api/v1/operations/billing`. Stop the development server before running `db:generate` on Windows because its loaded Prisma engine can lock the DLL.
 
-For online payment, configure `STRIPE_SECRET_KEY` with a test key and `STRIPE_WEBHOOK_SECRET`, then register `/api/webhooks/stripe` for Checkout completion, asynchronous success/failure and expiry events. POST `/api/v1/invoices/:id/checkout` with a UUID `idempotencyKey`. Only an OPEN result supplies a redirect URL; the return page must fetch the invoice to establish payment status. The worker reconciles uncertain/missed results. Pending or exceptional checkouts block recorded payments and cancellation until reconciliation; never bypass a hold based only on elapsed time. Admin operations expose unexpected receipt records for review. Provider API calls are simulated in tests; actual hosted Checkout still needs account verification.
+For online payment, configure `STRIPE_SECRET_KEY` with a test key and `STRIPE_WEBHOOK_SECRET`, then register `/api/webhooks/stripe` for Checkout completion, asynchronous success/failure and expiry events. POST `/api/v1/invoices/:id/checkout` with a UUID `idempotencyKey`. Only an OPEN result supplies a redirect URL; the return page must fetch the invoice to establish payment status. The worker reconciles uncertain/missed results. Pending or exceptional checkouts block recorded payments and cancellation until reconciliation; never bypass a hold based only on elapsed time. Admin operations expose unexpected receipt records for review. Provider API calls are simulated in tests. Actual hosted Checkout still needs account verification.
 
 ## Hosted demo
 
