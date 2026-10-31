@@ -25,6 +25,7 @@ Final acceptance: complete admin/staff/customer workflows on desktop/mobile; no 
 ## Progress log
 
 - Done: role and handoff agreed. No UI implementation completed at baseline.
+- Frontend-first work is now In progress. Authentication screens, Tailwind/CSS tokens, shared API/decimal formatting helpers and responsive workspace components have been added. Live headless Edge checks passed for registration/session, a real empty dashboard, mobile navigation and overflow. TypeScript passed after refreshing development route types. Backend/catalog draft work is shelved in the Git stash named "Pranav catalog draft before frontend priority". New commits/pushes must authenticate as pranavpk-05 and use its linked noreply identity; no previous Mathew commits are being rewritten.
 - Shared backend now available from Mathew: authenticated roles/session, reset email flow, subscription lists/drafts/actions/renewals, invoices/balances/payment history, recorded payment actions, Stripe checkout/status, and admin billing/payment operations. Read PROJECT_PLAN.md's API handoff; all frontend tasks above remain Not started.
 - Current verification: backend unit/integration tests use PostgreSQL 17 and a local SMTP receiver, plus live Next.js API smoke checks. Stripe provider calls are simulated until keys are configured. No hosted site or finished design exists.
 
