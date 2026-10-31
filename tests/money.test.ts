@@ -14,3 +14,7 @@ test("proportional allocation preserves every cent and caps discount", () => {
   assert.equal(calculateInvoice(lines, "100").total, "0.00");
   assert.throws(() => calculateInvoice([{...lines[0], quantity: -1}]));
 });
+test("large amounts preserve cents and reject database decimal overflow", () => {
+  assert.equal(calculateInvoice([{description: "Large", quantity: 1, unitPrice: "9999999999999999.99", taxPercent: "0"}]).total, "9999999999999999.99");
+  assert.throws(() => calculateInvoice([{description: "Overflow", quantity: 2, unitPrice: "9999999999999999.99", taxPercent: "0"}]));
+});

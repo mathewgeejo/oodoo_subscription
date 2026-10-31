@@ -1,8 +1,9 @@
-import Decimal from "decimal.js";
+import DecimalJs from "decimal.js";
 import { moneySchema } from "../core/contracts";
+const Decimal = DecimalJs.clone({ precision: 40, rounding: DecimalJs.ROUND_HALF_UP });
 
 export const decimal = (value: string) => new Decimal(value);
-export const rounded = (value: Decimal) => value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+export const rounded = (value: DecimalJs) => value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 export const amount = (value: string) => decimal(moneySchema.parse(value));
 export type InvoiceInputLine = { description: string; quantity: number; unitPrice: string; taxPercent: string };
 
@@ -29,6 +30,7 @@ export function calculateInvoice(lines: InvoiceInputLine[], discount = "0") {
     return {...line, subtotal: subtotals[i].toFixed(2), discount: lineDiscount.toFixed(2), tax: tax.toFixed(2), total: net.plus(tax).toFixed(2)};
   });
   const tax = result.reduce((a, b) => a.plus(b.tax), decimal("0"));
+  if ([subtotal, tax, subtotal.minus(saving).plus(tax)].some(value => value.gt("9999999999999999.99"))) throw new Error("Invoice exceeds supported monetary range");
   return {lines: result, subtotal: subtotal.toFixed(2), discount: saving.toFixed(2), tax: tax.toFixed(2), total: subtotal.minus(saving).plus(tax).toFixed(2)};
 }
 

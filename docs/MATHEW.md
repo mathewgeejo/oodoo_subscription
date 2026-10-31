@@ -38,3 +38,4 @@ Inspect repository and latest progress before proceeding. Finish foundation and 
 - Lifecycle checkpoint: explicit state transitions, minimum quantity, activation dates and plan pause/early-close permissions implemented as pure rules. Two tests passed. Boundary scheduling, resume and renewal require service/worker integration.
 - Draft contract checkpoint: validated draft quotation inputs, line quantities, date order, tax bounds and action names. Contract test passed. Plan-backed quotation creation remains dependent on Pranav's configuration services.
 - API error checkpoint: malformed JSON, field validation, permission failures and database conflicts return stable safe responses. Error-contract test passed without exposing database details.
+- Financial limits checkpoint: isolated 40-digit decimal precision and explicit database monetary bounds preserve cents on large totals and reject overflow. Financial/security regression tests passed.
