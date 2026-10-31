@@ -12,6 +12,16 @@ export interface CheckoutGateway {
   create(data: Stripe.Checkout.SessionCreateParams, options: {idempotencyKey: string}): Promise<Stripe.Checkout.Session>;
   retrieve(id: string): Promise<Stripe.Checkout.Session>;
 }
+export async function getCheckoutStatus(actor: Actor, invoiceId: string) {
+  const invoice = await db.invoice.findUnique({where: {id: invoiceId}, select: {subscription: {select: {customerId: true}}}});
+  if (!invoice) throw new AppError("NOT_FOUND", "Resource not found", 404);
+  requireOwnerOrStaff(actor, invoice.subscription.customerId);
+  const [attempt, exceptions] = await db.$transaction([
+    db.checkoutAttempt.findFirst({where: {invoiceId}, orderBy: [{createdAt: "desc"}, {id: "desc"}]}),
+    db.checkoutAttempt.count({where: {invoiceId, status: "EXCEPTION"}}),
+  ]);
+  return {attempt: attempt ? {id: attempt.id, status: attempt.status, url: !exceptions && attempt.status === "OPEN" ? attempt.checkoutUrl : null, expiresAt: attempt.expiresAt} : null, needsReconciliation: exceptions > 0};
+}
 export function stripeGateway(): CheckoutGateway {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key?.startsWith("sk_test_")) throw new AppError("GATEWAY_NOT_CONFIGURED", "Configure a Stripe test key", 503);
@@ -35,6 +45,7 @@ export async function startCheckout(actor: Actor, invoiceId: string, input: unkn
     const existing = await tx.checkoutAttempt.findUnique({where: {idempotencyKey}});
     if (existing) {
       if (existing.invoiceId !== invoiceId) throw new AppError("IDEMPOTENCY_CONFLICT", "Checkout key is already in use", 409);
+      if (await tx.checkoutAttempt.count({where: {invoiceId, status: "EXCEPTION"}})) throw new AppError("RECONCILIATION_REQUIRED", "Review the previous online payment before continuing", 409);
       return existing;
     }
     if (invoice.status !== "CONFIRMED") throw new AppError("INVALID_INVOICE", "Only confirmed unpaid invoices accept checkout", 409);

@@ -1,6 +1,10 @@
 import { requireActor, requireSameOrigin } from "../../../../../../server/auth/actor";
 import { errorResponse } from "../../../../../../server/core/errors";
-import { startCheckout } from "../../../../../../server/payments/stripe";
+import { startCheckout, getCheckoutStatus } from "../../../../../../server/payments/stripe";
+export async function GET(request: Request, context: {params: Promise<{id: string}>}) {
+  try { return Response.json({data: await getCheckoutStatus(await requireActor(request), (await context.params).id)}); }
+  catch (error) { return errorResponse(error); }
+}
 export async function POST(request: Request, context: {params: Promise<{id: string}>}) {
   try {
     requireSameOrigin(request);

@@ -7,7 +7,7 @@ import { createDraft, actOnSubscription } from "../../src/server/subscriptions/s
 import { billSubscription } from "../../src/server/billing/service";
 import { recordManualPayment } from "../../src/server/payments/manual";
 import { actOnInvoice } from "../../src/server/invoices/service";
-import { startCheckout, reconcileCheckouts, type CheckoutGateway } from "../../src/server/payments/stripe";
+import { startCheckout, getCheckoutStatus, reconcileCheckouts, type CheckoutGateway } from "../../src/server/payments/stripe";
 import { POST as webhook } from "../../src/app/api/webhooks/stripe/route";
 import type { Actor } from "../../src/server/core/permissions";
 if (!process.env.TEST_DATABASE_URL || process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL || !new URL(process.env.TEST_DATABASE_URL).pathname.endsWith("_test")) throw new Error("Use matching URLs for a dedicated *_test database");
@@ -73,6 +73,8 @@ test("checkout reserves the server balance, retries idempotently, and blocks con
   assert.equal([...gateway.sessions.values()][0].amount_total, 14160);
   assert.equal((await startCheckout(customer, inv.id, input, gateway)).id, attempt.id);
   assert.equal(gateway.sessions.size, 1);
+  assert.equal((await getCheckoutStatus(customer, inv.id)).attempt?.status, "OPEN");
+  await assert.rejects(() => getCheckoutStatus({id: "other-customer", role: "CUSTOMER"}, inv.id));
   await assert.rejects(() => startCheckout(customer, inv.id, {idempotencyKey: randomUUID()}, gateway));
   await assert.rejects(() => startCheckout({id: "other-customer", role: "CUSTOMER"}, inv.id, input, gateway));
   await assert.rejects(() => recordManualPayment(admin, inv.id, {idempotencyKey: randomUUID(), amount: "1", method: "CASH"}));
@@ -112,6 +114,8 @@ test("amount and currency mismatches become visible reconciliation exceptions wi
     assert.equal((await webhook(eventRequest(session))).status, 200);
     assert.equal((await db.checkoutAttempt.findFirstOrThrow({where: {invoiceId: inv.id}})).status, "EXCEPTION");
     assert.equal(await db.payment.count({where: {invoiceId: inv.id}}), 0);
+    assert.equal((await getCheckoutStatus(customer, inv.id)).needsReconciliation, true);
+    assert.equal((await getCheckoutStatus(customer, inv.id)).attempt?.url, null);
     await assert.rejects(() => recordManualPayment(admin, inv.id, {idempotencyKey: randomUUID(), amount: "1", method: "CASH"}));
   }
 });
