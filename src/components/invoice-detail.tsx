@@ -116,7 +116,11 @@ export function InvoiceDetail({ id }: { id: string }) {
         checkout.reload();
       }
     } catch (e) {
-      setError(e instanceof ApiError && e.status === 503 ? "Online payments are temporarily unavailable. Please try again later or contact Brightloop." : (e as Error).message);
+      setError(
+        e instanceof ApiError && e.status === 503
+          ? "Online payments are temporarily unavailable. Please try again later or contact Brightloop."
+          : (e as Error).message,
+      );
       checkout.reload();
     } finally {
       setBusy(false);
@@ -161,6 +165,28 @@ export function InvoiceDetail({ id }: { id: string }) {
     return <Failure error={invoice.error} retry={invoice.reload} />;
   const inv = invoice.data!.data;
   const internal = user.role !== "CUSTOMER";
+  async function sendInvoice() {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await api<{ data: { status: string } }>(
+        `/api/v1/invoices/${id}/send`,
+        { method: "POST", body: "{}" },
+      );
+      setMessage(
+        result.data.status === "SENT"
+          ? "This invoice has already been sent."
+          : result.data.status === "SKIPPED"
+            ? "Delivery is skipped for synthetic demo addresses."
+            : "Invoice email queued. Delivery requires the worker and configured SMTP.",
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <>
       <Link className="text-link" href="/invoices">
@@ -174,6 +200,11 @@ export function InvoiceDetail({ id }: { id: string }) {
         </div>
         <div className="actions">
           <Status value={inv.status} />
+          {internal && ["CONFIRMED", "PAID"].includes(inv.status) && (
+            <button className="button" disabled={busy} onClick={sendInvoice}>
+              Send invoice
+            </button>
+          )}
           <button className="button" onClick={() => window.print()}>
             Print invoice ↗
           </button>
