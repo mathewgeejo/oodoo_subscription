@@ -98,6 +98,8 @@ model Subscription {
   planName          String
   cadence           Cadence
   basePrice         Decimal @db.Decimal(18, 2)
+  baseTaxPercent    Decimal @default(0) @db.Decimal(5, 2)
+  billingTimezone   String @default("Asia/Kolkata")
   currency          String @default("INR")
   minimumQuantity   Int @default(1)
   canPause          Boolean @default(false)

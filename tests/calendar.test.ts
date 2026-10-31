@@ -14,3 +14,7 @@ test("catch-up includes due boundary, excludes expiry, and is bounded", () => {
   assert.equal(duePeriods(date("2026-01-01"), "DAILY", 0, date("2026-01-10"), date("2027-01-01"), 2).length, 2);
   assert.throws(() => periodBoundary(date("2026-01-01"), "WEEKLY", -1));
 });
+test("monthly billing uses business dates and daily billing preserves local time across DST", () => {
+  assert.equal(periodBoundary(new Date("2026-02-28T18:30:00Z"), "MONTHLY", 1, "Asia/Kolkata").toISOString(), "2026-03-31T18:30:00.000Z");
+  assert.equal(periodBoundary(new Date("2026-03-07T17:00:00Z"), "DAILY", 1, "America/New_York").toISOString(), "2026-03-08T16:00:00.000Z");
+});

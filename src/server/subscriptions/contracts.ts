@@ -5,6 +5,7 @@ export const subscriptionDraftSchema = z.object({
   planName: z.string().trim().min(1).max(200),
   cadence: cadenceSchema,
   basePrice: moneySchema,
+  baseTaxPercent: moneySchema.refine(value => Number(value) <= 100).default("0"),
   startAt: z.iso.datetime().transform(value => new Date(value)),
   expiresAt: z.iso.datetime().transform(value => new Date(value)),
   paymentTermDays: z.number().int().min(0).max(365).default(14),

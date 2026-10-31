@@ -17,7 +17,9 @@ export async function createDraft(actor: Actor, input: unknown) {
     const customer = await tx.user.findUnique({where: {id: data.customerId}});
     if (!customer || customer.role !== "CUSTOMER") throw new AppError("INVALID_CUSTOMER", "Select a customer account");
     const {lines, ...values} = data;
-    const subscription = await tx.subscription.create({data: {...values, number: `SUB-${randomUUID()}`, currency: "INR", lines: {create: lines}}, include: {lines: true}});
+    const billingTimezone = process.env.BUSINESS_TIMEZONE ?? "Asia/Kolkata";
+    new Intl.DateTimeFormat("en", {timeZone: billingTimezone});
+    const subscription = await tx.subscription.create({data: {...values, billingTimezone, number: `SUB-${randomUUID()}`, currency: "INR", lines: {create: lines}}, include: {lines: true}});
     await tx.auditEvent.create({data: {actorId: actor.id, action: "subscription.created", resourceId: subscription.id}});
     return subscription;
   });
@@ -34,7 +36,7 @@ export async function actOnSubscription(actor: Actor, id: string, action: Subscr
     const deferred = (action === "PAUSE" || action === "CLOSE") && subscription.status === "ACTIVE" && now < subscription.expiresAt;
     // nextPeriodIndex points to the first period not yet invoiced. It must be in
     // the future before allowing a boundary request; overdue billing runs first.
-    const boundary = periodBoundary(subscription.startAt, subscription.cadence, subscription.nextPeriodIndex);
+    const boundary = periodBoundary(subscription.startAt, subscription.cadence, subscription.nextPeriodIndex, subscription.billingTimezone);
     if (deferred && boundary <= now) throw new AppError("BILLING_PENDING", "Process due billing before scheduling this action", 409);
     if (action === "RESUME") throw new AppError("NOT_IMPLEMENTED", "Resume scheduling requires the billing worker integration", 409);
     const changed = await tx.subscription.updateMany({where: {id, version: subscription.version}, data: {
