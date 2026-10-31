@@ -1,4 +1,13 @@
 @import "tailwindcss";
+
+.catalog-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px; }
+.line-editor { border:1px solid #dde5de; border-radius:10px; padding:18px; margin:20px 0; }
+.line-row { display:flex; align-items:end; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+.line-row label { flex:1; min-width:120px; }
+.check-label { display:flex; gap:8px; align-items:center; margin:8px 0; }
+.form-panel input[type="checkbox"] { width:auto; }
+.report-bar { height:14px; min-width:3px; background:#388c64; border-radius:4px; }
+.sidebar { overflow-y:auto; }
 :root {
   --ink: #202924;
   --muted: #7a837e;

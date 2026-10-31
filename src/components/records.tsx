@@ -12,7 +12,9 @@ import {
   type PageData,
 } from "./data";
 import { money, date } from "./api";
+import { useUser } from "./session";
 export function Records({ kind }: { kind: "invoices" | "subscriptions" }) {
+  const user = useUser();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
@@ -38,6 +40,11 @@ export function Records({ kind }: { kind: "invoices" | "subscriptions" }) {
         <span className="date-chip">
           {result.data?.pagination.total ?? "—"} {kind}
         </span>
+        {kind === "subscriptions" && user.role !== "CUSTOMER" && (
+          <Link className="button button-primary" href="/subscriptions/new">
+            New quotation
+          </Link>
+        )}
       </div>
       <section className="panel">
         <div className="toolbar">

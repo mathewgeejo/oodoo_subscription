@@ -9,6 +9,10 @@ const links = [
   { href: "/", label: "Overview", icon: "◫" },
   { href: "/subscriptions", label: "Subscriptions", icon: "↻" },
   { href: "/invoices", label: "Invoices", icon: "▤" },
+  { href: "/customers", label: "Customers", icon: "◎" },
+  { href: "/catalog", label: "Catalog", icon: "▦" },
+  { href: "/reports", label: "Reports", icon: "↗" },
+  { href: "/operations", label: "Operations", icon: "⚙" },
   { href: "/account", label: "My account", icon: "◎" },
 ];
 export function AppShell({ children }: { children: ReactNode }) {
@@ -38,7 +42,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [path]);
   useEffect(() => {
     if (!open) return;
-    const close = (event: KeyboardEvent) => {if (event.key === "Escape") setOpen(false);};
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [open]);
@@ -77,22 +83,31 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <p className="nav-caption">WORKSPACE</p>
           <nav id="workspace-navigation" aria-label="Main navigation">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={
-                  current === link.href ||
-                  (link.href !== "/" && current.startsWith(link.href))
-                    ? "nav-link active"
-                    : "nav-link"
-                }
-                aria-current={current === link.href ? "page" : undefined}
-              >
-                <span aria-hidden="true">{link.icon}</span>
-                {link.label}
-              </Link>
-            ))}
+            {links
+              .filter(
+                (link) =>
+                  !(
+                    ["/customers", "/catalog", "/reports"].includes(
+                      link.href,
+                    ) && user.role === "CUSTOMER"
+                  ) && !(link.href === "/operations" && user.role !== "ADMIN"),
+              )
+              .map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={
+                    current === link.href ||
+                    (link.href !== "/" && current.startsWith(link.href))
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                  aria-current={current === link.href ? "page" : undefined}
+                >
+                  <span aria-hidden="true">{link.icon}</span>
+                  {link.label}
+                </Link>
+              ))}
           </nav>
           <div className="sidebar-bottom">
             <div className="help-card">
@@ -100,7 +115,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <strong>A little less admin.</strong>
               <p>More space to grow your business.</p>
             </div>
-            <button className="profile-button" title="Sign out" onClick={logout}>
+            <button
+              className="profile-button"
+              title="Sign out"
+              onClick={logout}
+            >
               <span className="avatar">
                 {user.name.slice(0, 1).toUpperCase()}
               </span>
