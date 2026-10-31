@@ -7,14 +7,14 @@ import { subscriptionDraftSchema } from "./contracts";
 import { transition, type SubscriptionAction } from "./lifecycle";
 import { periodBoundary, firstPeriodOnOrAfter } from "../billing/calendar";
 import { serializable } from "../core/transaction";
+import { catalogQuotation } from "../catalog/quotation";
 
 export async function createDraft(actor: Actor, input: unknown) {
   requirePermission(actor, "business:write");
-  const data = subscriptionDraftSchema.parse(input);
-  // Plan configuration is Pranav's domain. Until integrated, manual quotes are
-  // admin-only so staff cannot invent catalog prices or lifecycle permissions.
-  requirePermission(actor, "configuration:write");
+  const fromCatalog=!!(input && typeof input==="object" && "planId" in input);
+  if(!fromCatalog) requirePermission(actor, "configuration:write");
   return db.$transaction(async tx => {
+    const data=fromCatalog ? await catalogQuotation(tx,input):subscriptionDraftSchema.parse(input);
     const customer = await tx.user.findUnique({where: {id: data.customerId}});
     if (!customer || customer.role !== "CUSTOMER") throw new AppError("INVALID_CUSTOMER", "Select a customer account");
     const {lines, ...values} = data;
@@ -33,6 +33,13 @@ export async function actOnSubscription(actor: Actor, id: string, action: Subscr
     if (!subscription) throw new AppError("NOT_FOUND", "Resource not found", 404);
     requireOwnerOrStaff(actor, subscription.customerId);
     if (subscription.pendingAction) throw new AppError("ACTION_PENDING", "A boundary action is already pending", 409);
+    if(action==="CONFIRM") {
+      if(subscription.quotationExpiresAt && now>=subscription.quotationExpiresAt) throw new AppError("QUOTATION_EXPIRED","This quotation has expired; create a new quotation",409);
+      if(subscription.planId){
+        const plan=await tx.plan.findUnique({where:{id:subscription.planId}});
+        if(!plan?.active || (plan.availableFrom && now<plan.availableFrom) || (plan.availableUntil && now>=plan.availableUntil)) throw new AppError("UNAVAILABLE_PLAN","This plan is no longer available",409);
+      }
+    }
     const status = transition({...subscription, now, quantity: subscription.lines.reduce((sum, line) => sum + line.quantity, 0)}, action);
     const deferred = (action === "PAUSE" || action === "CLOSE") && subscription.status === "ACTIVE" && now < subscription.expiresAt;
     // nextPeriodIndex points to the first period not yet invoiced. It must be in
@@ -45,6 +52,7 @@ export async function actOnSubscription(actor: Actor, id: string, action: Subscr
     const changed = await tx.subscription.updateMany({where: {id, version: subscription.version}, data: {
       ...(deferred ? {pendingAction: action, pendingActionAt: boundary < subscription.expiresAt ? boundary : subscription.expiresAt} : {status}),
       ...(action === "ACTIVATE" ? {nextBillingAt: subscription.startAt} : {}),
+      ...(action === "QUOTE" ? {quotationExpiresAt:periodBoundary(now,"DAILY",subscription.quotationValidityDays,subscription.billingTimezone)}:{}),
       ...(action === "RESUME" ? {nextPeriodIndex: resumeIndex, nextBillingAt: resumeAt} : {}),
       version: {increment: 1},
     }});

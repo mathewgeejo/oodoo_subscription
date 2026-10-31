@@ -3,6 +3,7 @@ import { serializable } from "../core/transaction";
 import { AppError } from "../core/errors";
 import { calculateInvoice } from "./money";
 import { periodBoundary } from "./calendar";
+import { chooseDiscount } from "../catalog/discounts";
 
 /** One due period per transaction. Row locking + a unique period key make both
  * concurrent invocations and process-crash retries safe. No external I/O here. */
@@ -33,11 +34,13 @@ export async function billSubscription(id: string, now = new Date(), actorId = "
     if (start > now) return null;
     const next = periodBoundary(subscription.startAt, subscription.cadence, index + 1, subscription.billingTimezone);
     const end = next > subscription.expiresAt ? subscription.expiresAt : next;
-    const amounts = calculateInvoice([
+    const lines = [
       {description: subscription.planName, quantity: 1, unitPrice: subscription.basePrice.toFixed(2), taxPercent: subscription.baseTaxPercent.toFixed(2)},
-      ...subscription.lines.map(line => ({description: line.description, quantity: line.quantity, unitPrice: line.unitPrice.toFixed(2), taxPercent: line.taxPercent.toFixed(2)})),
-    ]);
+      ...subscription.lines.map(line => ({description: line.description, quantity: line.quantity, unitPrice: line.unitPrice.toFixed(2), taxPercent: line.taxPercent.toFixed(2),productId:line.productId,variantId:line.variantId})),
+    ];
     const existing = await tx.invoice.findUnique({where: {subscriptionId_periodIndex: {subscriptionId: id, periodIndex: index}}});
+    const discount=existing?null:await chooseDiscount(tx,lines,start);
+    const amounts=calculateInvoice(lines,discount?.saving??"0",discount?.eligibleIndexes);
     const invoice = existing ?? await tx.invoice.create({data: {
       number: `INV-${randomUUID()}`, subscriptionId: id, periodIndex: index, periodStart: start, periodEnd: end,
       dueAt: periodBoundary(start, "DAILY", subscription.paymentTermDays, subscription.billingTimezone),
@@ -46,6 +49,10 @@ export async function billSubscription(id: string, now = new Date(), actorId = "
       subtotal: amounts.subtotal, discount: amounts.discount, tax: amounts.tax, total: amounts.total,
       lines: {create: amounts.lines},
     }});
+    if(!existing && discount){
+      await tx.discountRule.update({where:{id:discount.id},data:{usageCount:{increment:1}}});
+      await tx.discountUse.create({data:{discountId:discount.id,invoiceId:invoice.id,amount:amounts.discount}});
+    }
     await tx.subscription.update({where: {id}, data: {nextPeriodIndex: index + 1, nextBillingAt: end, billingFailureCount: 0, billingRetryAt: null, billingLastError: null, version: {increment: 1}}});
     if (!existing) await tx.auditEvent.create({data: {actorId, action: "invoice.generated", resourceId: invoice.id}});
     return invoice;

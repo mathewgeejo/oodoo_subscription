@@ -1,0 +1,40 @@
+import {test,after} from "node:test";
+import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
+import {db} from "../../src/server/db";
+import {createDraft,actOnSubscription} from "../../src/server/subscriptions/service";
+import {billSubscription} from "../../src/server/billing/service";
+import {actOnInvoice} from "../../src/server/invoices/service";
+if(!process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!==process.env.TEST_DATABASE_URL || !new URL(process.env.TEST_DATABASE_URL).pathname.endsWith("_test")) throw new Error("Use dedicated *_test database");
+after(()=>db.$disconnect());
+test("catalog snapshots, quotation expiry and concurrent capped product discounts are transactional",async()=>{
+ const staff={id:randomUUID(),role:"STAFF" as const};
+ const customer=await db.user.create({data:{id:randomUUID(),name:"Catalog customer",email:`${randomUUID()}@example.test`}});
+ const tax=await db.taxRule.create({data:{name:"18 percent",percent:"18"}});
+ const product=await db.product.create({data:{name:"Seats",type:"SERVICE",salesPrice:"100",costPrice:"10",taxRuleId:tax.id,variants:{create:{name:"Odoo",priceAdjustment:"560"}}},include:{variants:true}});
+ const plan=await db.plan.create({data:{name:"Business",cadence:"MONTHLY",basePrice:"50",minimumQuantity:2,canPause:true}});
+ const template=await db.quotationTemplate.create({data:{name:"Business template",planId:plan.id,validityDays:7,lines:{create:{productId:product.id,variantId:product.variants[0].id,quantity:2}}}});
+ const at=new Date(); const expires=new Date(at);expires.setUTCFullYear(at.getUTCFullYear()+1);
+ const input={customerId:customer.id,planId:plan.id,templateId:template.id,startAt:at.toISOString(),expiresAt:expires.toISOString()};
+ const first=await createDraft(staff,input); const second=await createDraft(staff,input);
+ assert.equal(first.lines[0].unitPrice.toFixed(2),"660.00");
+ await db.product.update({where:{id:product.id},data:{salesPrice:"999"}});
+ assert.equal((await db.subscriptionLine.findFirstOrThrow({where:{subscriptionId:first.id}})).unitPrice.toFixed(2),"660.00");
+ await assert.rejects(()=>createDraft(staff,{...input,lines:[{productId:product.id,quantity:1}]}),/at least 2/);
+ for(const sub of [first,second]) for(const action of ["QUOTE","CONFIRM","ACTIVATE"] as const) await actOnSubscription(staff,sub.id,action,at);
+ const rule=await db.discountRule.create({data:{name:"Capped product offer",kind:"PERCENTAGE",value:"10",startsAt:new Date(at.getTime()-1000),endsAt:expires,usageLimit:1,targets:{create:{productId:product.id}}}});
+ try {
+   const invoices=await Promise.all([billSubscription(first.id,at),billSubscription(second.id,at)]);
+   assert.equal(invoices.filter(invoice=>invoice?.discount.gt(0)).length,1);
+   const discounted=invoices.find(invoice=>invoice?.discount.gt(0))!;
+   assert.equal(discounted.discount.toFixed(2),"132.00");
+   assert.equal(discounted.tax.toFixed(2),"213.84");
+   const base=await db.invoiceLine.findFirstOrThrow({where:{invoiceId:discounted.id,productId:null}});
+   assert.equal(base.discount.toFixed(2),"0.00");
+   await actOnInvoice(staff,discounted.id,"CANCEL"); await actOnInvoice(staff,discounted.id,"CANCEL");
+   assert.equal((await db.discountRule.findUniqueOrThrow({where:{id:rule.id}})).usageCount,0);
+   const expired=await createDraft(staff,input);
+   await actOnSubscription(staff,expired.id,"QUOTE",at);
+   await assert.rejects(()=>actOnSubscription(staff,expired.id,"CONFIRM",new Date(at.getTime()+8*86400000)),/expired/);
+ } finally {await db.discountRule.update({where:{id:rule.id},data:{active:false}});}
+});

@@ -15,3 +15,9 @@ export const subscriptionDraftSchema = z.object({
   })).min(1).max(100),
 }).refine(data => data.expiresAt > data.startAt, { message: "Expiry must follow start", path: ["expiresAt"] });
 export const actionSchema = z.object({ action: z.enum(["QUOTE", "CONFIRM", "ACTIVATE", "PAUSE", "RESUME", "CLOSE"]) });
+export const catalogDraftSchema = z.object({
+  customerId:z.string().min(1).max(100), planId:z.string().min(1), templateId:z.string().min(1).optional(),
+  startAt:z.iso.datetime().transform(value=>new Date(value)), expiresAt:z.iso.datetime().transform(value=>new Date(value)),
+  paymentTermDays:z.number().int().min(0).max(365).default(14),
+  lines:z.array(z.object({productId:z.string().min(1),variantId:z.string().nullable().default(null),quantity:z.number().int().min(1).max(1000000)})).min(1).max(100).optional(),
+}).refine(value=>value.expiresAt>value.startAt,{message:"Expiry must follow start",path:["expiresAt"]});

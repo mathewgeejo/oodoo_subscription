@@ -43,6 +43,13 @@ export async function actOnInvoice(actor: Actor, id: string, action: "CONFIRM" |
       if (invoice.status !== "DRAFT") throw new AppError("INVALID_TRANSITION", "Invoice cannot be confirmed", 409);
     }
     const result = await tx.invoice.update({where: {id}, data: {status: action === "CANCEL" ? "CANCELLED" : invoice.total.isZero() ? "PAID" : "CONFIRMED"}});
+    if(action==="CANCEL"){
+      const use=await tx.discountUse.findUnique({where:{invoiceId:id}});
+      if(use && !use.restoredAt){
+        await tx.discountRule.update({where:{id:use.discountId},data:{usageCount:{decrement:1}}});
+        await tx.discountUse.update({where:{id:use.id},data:{restoredAt:new Date()}});
+      }
+    }
     await tx.auditEvent.create({data: {actorId: actor.id, action: `invoice.${action.toLowerCase()}`, resourceId: id}});
     return result;
   });

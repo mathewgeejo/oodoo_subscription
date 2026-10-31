@@ -5,11 +5,11 @@ const Decimal = DecimalJs.clone({ precision: 40, rounding: DecimalJs.ROUND_HALF_
 export const decimal = (value: string) => new Decimal(value);
 export const rounded = (value: DecimalJs) => value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 export const amount = (value: string) => decimal(moneySchema.parse(value));
-export type InvoiceInputLine = { description: string; quantity: number; unitPrice: string; taxPercent: string };
+export type InvoiceInputLine = { description: string; quantity: number; unitPrice: string; taxPercent: string; productId?:string|null; variantId?:string|null };
 
 /** Tax-exclusive amounts. Allocate fixed invoice discount by cumulative rounded shares,
  * so all allocated cents sum exactly to the invoice discount. */
-export function calculateInvoice(lines: InvoiceInputLine[], discount = "0") {
+export function calculateInvoice(lines: InvoiceInputLine[], discount = "0", eligibleIndexes=lines.map((_,index)=>index)) {
   if (!lines.length) throw new Error("Invoice requires at least one line");
   const subtotals = lines.map(line => {
     if (!Number.isSafeInteger(line.quantity) || line.quantity < 1) throw new Error("Quantity must be a positive integer");
@@ -17,12 +17,14 @@ export function calculateInvoice(lines: InvoiceInputLine[], discount = "0") {
     return rounded(amount(line.unitPrice).mul(line.quantity));
   });
   const subtotal = subtotals.reduce((a, b) => a.plus(b), decimal("0"));
-  const saving = Decimal.min(amount(discount), subtotal);
+  const eligible=new Set(eligibleIndexes);
+  const eligibleSubtotal=subtotals.reduce((sum,value,index)=>eligible.has(index)?sum.plus(value):sum,decimal("0"));
+  const saving = Decimal.min(amount(discount), eligibleSubtotal);
   let cumulative = decimal("0");
   let allocated = decimal("0");
   const result = lines.map((line, i) => {
-    cumulative = cumulative.plus(subtotals[i]);
-    const target = subtotal.isZero() ? decimal("0") : rounded(saving.mul(cumulative).div(subtotal));
+    if(eligible.has(i)) cumulative = cumulative.plus(subtotals[i]);
+    const target = eligibleSubtotal.isZero() ? decimal("0") : rounded(saving.mul(cumulative).div(eligibleSubtotal));
     const lineDiscount = target.minus(allocated);
     allocated = target;
     const net = subtotals[i].minus(lineDiscount);

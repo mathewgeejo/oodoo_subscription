@@ -22,6 +22,8 @@ Own src/server/catalog, src/server/plans, src/server/templates, src/server/disco
 
 ## Progress log
 
+- Connected catalog-backed quotation creation for staff/admin, server-resolved prices/taxes/variants, minimum quantity, plan availability, template validity and expiry checks. Billing snapshots product references and selects the largest eligible discount before tax. Capped use is consumed atomically; cancellation restores it once. All 24 PostgreSQL integration tests pass, including concurrent usage-cap and historical-price checks; TypeScript passes.
+
 - Implemented products/archived variants, plan/tax/template/discount management APIs and normalized SQL migration with foreign keys, money/date/usage checks and report indexes. Active variants retain their IDs; removed variants remain available to historical records. Staff cannot modify configuration or inspect cost prices. Database integration and contract tests passed on PostgreSQL 17.
 - Catalog snapshots, rule consumption, reporting, delivery and repeatable demo data are the current integration work. Deployment target requested by the user is mathewgeejo.dev.
 
