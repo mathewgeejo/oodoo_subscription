@@ -24,6 +24,9 @@ Final acceptance: complete admin/staff/customer workflows on desktop/mobile; no 
 
 ## Progress log
 
+- Implemented responsive workspace navigation, live dashboard, subscription/invoice lists and detail pages, account/password/staff forms, lifecycle actions, manual payments, Checkout states and printable invoice view. Browser checks passed for signup/login, real empty dashboard and mobile navigation; populated workflows are the next check. TypeScript and 24 unit tests pass. No build run.
+- Latest priority: finish usable workflows quickly, connect normalized catalog and reporting, populate synthetic records and prepare mathewgeejo.dev deployment.
+
 - Done: role and handoff agreed. No UI implementation completed at baseline.
 - Frontend-first work is now In progress. Authentication screens, Tailwind/CSS tokens, shared API/decimal formatting helpers and responsive workspace components have been added. Live headless Edge checks passed for registration/session, a real empty dashboard, mobile navigation and overflow. TypeScript passed after refreshing development route types. Backend/catalog draft work is shelved in the Git stash named "Pranav catalog draft before frontend priority". New commits/pushes must authenticate as pranavpk-05 and use its linked noreply identity; no previous Mathew commits are being rewritten.
 - Origin fix: localhost/127.0.0.1/IPv6 loopback aliases now share an exact same-port development policy in authentication and business mutations. Production origins remain explicit. Browser signup/login succeeded on both localhost and 127.0.0.1; six targeted security tests and typecheck passed. Latest priority is quick functional completion, database integration, dummy data and deployment on mathewgeejo.dev.
