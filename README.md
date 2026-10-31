@@ -1,6 +1,6 @@
 # Brightloop Subscription Management
 
-Next.js/React/TypeScript with PostgreSQL and a separate billing worker. No Vite.
+Next.js/React/TypeScript with PostgreSQL and a separate billing worker. No Vite..
 
 Read [the shared plan](docs/PROJECT_PLAN.md) and your handoff: [Mathew](docs/MATHEW.md), [Lea](docs/LEA.md), [Pranav](docs/PRANAV.md).
 
