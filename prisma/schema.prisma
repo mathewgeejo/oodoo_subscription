@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum Role {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+enum SubscriptionStatus {
+  DRAFT
+  QUOTATION
+  CONFIRMED
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+enum Cadence {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+enum InvoiceStatus {
+  DRAFT
+  CONFIRMED
+  PAID
+  CANCELLED
+}
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          Role     @default(CUSTOMER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  subscriptions Subscription[]
+  @@map("users")
+}
+model Session {
+  id        String   @id
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+model Account {
+  id                     String @id
+  accountId              String
+  providerId             String
+  userId                 String
+  password               String?
+  accessToken            String?
+  refreshToken           String?
+  idToken                String?
+  accessTokenExpiresAt   DateTime?
+  refreshTokenExpiresAt  DateTime?
+  scope                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  user                   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+model Verification {
+  id         String @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@index([identifier])
+}
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+}
+model Subscription {
+  id                String @id @default(cuid())
+  number            String @unique
+  customerId        String
+  customer          User @relation(fields: [customerId], references: [id])
+  status            SubscriptionStatus @default(DRAFT)
+  planName          String
+  cadence           Cadence
+  basePrice         Decimal @db.Decimal(18, 2)
+  currency          String @default("INR")
+  minimumQuantity   Int @default(1)
+  canPause          Boolean @default(false)
+  canRenew          Boolean @default(true)
+  canCloseEarly     Boolean @default(false)
+  autoClose         Boolean @default(true)
+  startAt           DateTime
+  expiresAt         DateTime
+  paymentTermDays   Int @default(14)
+  nextPeriodIndex   Int @default(0)
+  nextBillingAt     DateTime?
+  pendingAction     String?
+  pendingActionAt   DateTime?
+  version           Int @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lines             SubscriptionLine[]
+  invoices          Invoice[]
+  @@index([status, nextBillingAt])
+  @@index([customerId, createdAt])
+}
+model SubscriptionLine {
+  id             String @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Int
+  unitPrice      Decimal @db.Decimal(18, 2)
+  taxPercent     Decimal @db.Decimal(5, 2)
+  @@index([subscriptionId])
+}
+model Invoice {
+  id             String @id @default(cuid())
+  number         String @unique
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  periodIndex    Int
+  periodStart    DateTime
+  periodEnd      DateTime
+  dueAt          DateTime
+  status         InvoiceStatus @default(DRAFT)
+  currency       String
+  customerName   String
+  customerEmail  String
+  subtotal       Decimal @db.Decimal(18, 2)
+  discount       Decimal @db.Decimal(18, 2)
+  tax            Decimal @db.Decimal(18, 2)
+  total          Decimal @db.Decimal(18, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          InvoiceLine[]
+  payments       Payment[]
+  @@unique([subscriptionId, periodIndex])
+  @@index([status, dueAt])
+}
+model InvoiceLine {
+  id          String @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  description String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(18, 2)
+  taxPercent  Decimal @db.Decimal(5, 2)
+  subtotal    Decimal @db.Decimal(18, 2)
+  discount    Decimal @db.Decimal(18, 2)
+  tax         Decimal @db.Decimal(18, 2)
+  total       Decimal @db.Decimal(18, 2)
+  @@index([invoiceId])
+}
+model Payment {
+  id         String @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  amount     Decimal @db.Decimal(18, 2)
+  method     String
+  paidAt     DateTime
+  note       String?
+  reference  String @unique
+  recordedBy String
+  createdAt  DateTime @default(now())
+  @@index([invoiceId])
+}
+model AuditEvent {
+  id         String @id @default(cuid())
+  actorId    String
+  action     String
+  resourceId String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  @@index([resourceId, createdAt])
+}
