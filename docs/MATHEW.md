@@ -10,12 +10,12 @@ Read PROJECT_PLAN.md first. Own architecture, shared contracts, security, schema
 
 | Task | Status | Acceptance |
 | --- | --- | --- |
-| M01 Next.js/TypeScript foundation and health endpoint | Not started | Reproducible install, typecheck, HTTP health route, env example |
-| M02 Shared contracts, roles and financial primitives | Not started | Validated inputs; decimal-safe calculations; permission tests |
-| M03 PostgreSQL schema and migration baseline | Not started | Prisma validation, constraints, auth-compatible tables; real DB migration separately verified |
-| M04 Authentication and customer isolation | Not started | Better Auth, password/reset rules, admin-only staff, role/ownership checks, audit |
-| M05 Subscription lifecycle and service endpoints | Not started | Validated transitions, quotations, activation, pause/close boundaries and renewal history |
-| M06 Invoice engine | Not started | Price/tax/discount snapshots, exact rounding, balances and invoice actions |
+| M01 Next.js/TypeScript foundation and health endpoint | Done | Reproducible install, typecheck, HTTP health route, env example |
+| M02 Shared contracts, roles and financial primitives | Done | Validated inputs; decimal-safe calculations; permission tests |
+| M03 PostgreSQL schema and migration baseline | In progress | Prisma validation, constraints, auth-compatible tables; real DB migration separately verified |
+| M04 Authentication and customer isolation | In progress | Better Auth, password/reset rules, admin-only staff, role/ownership checks, audit |
+| M05 Subscription lifecycle and service endpoints | In progress | Validated transitions, quotations, activation, pause/close boundaries and renewal history |
+| M06 Invoice engine | In progress | Price/tax/discount snapshots, exact rounding, balances and invoice actions |
 | M07 Durable billing worker | Not started | Concurrent/retried/catch-up billing cannot duplicate or skip periods |
 | M08 Manual payments and Stripe | Not started | Partial payments, reservations, verified/deduplicated webhooks, reconciliation |
 | M09 Hosting and integrated acceptance | Not started | Web/worker/DB/email configured, complete smoke flow, observability |
@@ -39,3 +39,4 @@ Inspect repository and latest progress before proceeding. Finish foundation and 
 - Draft contract checkpoint: validated draft quotation inputs, line quantities, date order, tax bounds and action names. Contract test passed. Plan-backed quotation creation remains dependent on Pranav's configuration services.
 - API error checkpoint: malformed JSON, field validation, permission failures and database conflicts return stable safe responses. Error-contract test passed without exposing database details.
 - Financial limits checkpoint: isolated 40-digit decimal precision and explicit database monetary bounds preserve cents on large totals and reject overflow. Financial/security regression tests passed.
+- Runtime checkpoint: clean offline npm ci completed successfully using integrity-checked archives. All 16 current tests and TypeScript checks passed. Live development HTTP smoke: homepage/health 200, unauthenticated me/subscriptions 401, cross-origin staff POST 403. Project config prevents generated instruction overrides and scopes Turbopack to this repository. No build run.
