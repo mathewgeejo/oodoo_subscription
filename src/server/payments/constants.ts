@@ -1,0 +1,1 @@
+export const RESERVED_CHECKOUT_STATES = ["RESERVING", "OPEN", "EXCEPTION"] as const;

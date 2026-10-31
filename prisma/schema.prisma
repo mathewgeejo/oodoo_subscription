@@ -30,6 +30,14 @@ enum InvoiceStatus {
   PAID
   CANCELLED
 }
+enum CheckoutStatus {
+  RESERVING
+  OPEN
+  PAID
+  EXPIRED
+  FAILED
+  EXCEPTION
+}
 model User {
   id            String   @id
   name          String
@@ -155,6 +163,7 @@ model Invoice {
   updatedAt      DateTime @updatedAt
   lines          InvoiceLine[]
   payments       Payment[]
+  checkouts      CheckoutAttempt[]
   @@unique([subscriptionId, periodIndex])
   @@index([status, dueAt])
 }
@@ -198,4 +207,44 @@ model AuditEvent {
 model WorkerHeartbeat {
   id        String @id
   lastSeen  DateTime
+}
+model CheckoutAttempt {
+  id                String @id @default(cuid())
+  invoiceId         String
+  invoice           Invoice @relation(fields: [invoiceId], references: [id])
+  createdBy         String
+  idempotencyKey    String @unique
+  amount            Decimal @db.Decimal(18, 2)
+  currency          String
+  status            CheckoutStatus @default(RESERVING)
+  providerSessionId String? @unique
+  providerPaymentId String? @unique
+  receivedAmount    Decimal? @db.Decimal(18, 2)
+  receivedCurrency  String?
+  checkoutUrl       String?
+  failureCode       String?
+  expiresAt         DateTime
+  nextReconcileAt   DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([status, nextReconcileAt])
+  receipts          ProviderReceipt[]
+}
+model ProviderEvent {
+  id          String @id
+  type        String
+  attemptId   String
+  outcome     String
+  processedAt DateTime @default(now())
+}
+model ProviderReceipt {
+  id                String @id
+  attemptId         String
+  attempt           CheckoutAttempt @relation(fields: [attemptId], references: [id])
+  providerSessionId String
+  amount            Decimal? @db.Decimal(18, 2)
+  currency          String?
+  outcome           String
+  createdAt         DateTime @default(now())
+  @@index([outcome, createdAt])
 }

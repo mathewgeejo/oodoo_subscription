@@ -4,6 +4,7 @@ import { AppError } from "../core/errors";
 import { requirePermission, type Actor } from "../core/permissions";
 import { serializable } from "../core/transaction";
 import { amount, invoiceBalance } from "../billing/money";
+import { RESERVED_CHECKOUT_STATES } from "./constants";
 
 export const manualPaymentSchema = z.object({
   idempotencyKey: z.uuid(), amount: moneySchema.refine(value => Number(value) > 0, "Payment must be positive"),
@@ -24,6 +25,7 @@ export async function recordManualPayment(actor: Actor, invoiceId: string, input
     const invoice = await tx.invoice.findUnique({where: {id: invoiceId}});
     if (!invoice) throw new AppError("NOT_FOUND", "Invoice not found", 404);
     if (invoice.status !== "CONFIRMED") throw new AppError("INVALID_INVOICE", "Only confirmed unpaid invoices accept payments", 409);
+    if (await tx.checkoutAttempt.count({where: {invoiceId, status: {in: [...RESERVED_CHECKOUT_STATES]}}})) throw new AppError("CHECKOUT_PENDING", "Reconcile the online payment before recording another payment", 409);
     const paid = await tx.payment.aggregate({where: {invoiceId}, _sum: {amount: true}});
     const balance = invoiceBalance(invoice.total.toFixed(2), [paid._sum.amount?.toFixed(2) ?? "0"]);
     if (amount(data.amount).gt(balance)) throw new AppError("OVERPAYMENT", "Payment exceeds the outstanding balance", 409);

@@ -6,6 +6,7 @@ import { serializable } from "../core/transaction";
 import { invoiceBalance } from "../billing/money";
 import { paginationSchema } from "../core/contracts";
 import { z } from "zod";
+import { RESERVED_CHECKOUT_STATES } from "../payments/constants";
 
 export async function listInvoices(actor: Actor, input: unknown) {
   const {page, pageSize, status} = paginationSchema.extend({status: z.enum(["DRAFT", "CONFIRMED", "PAID", "CANCELLED"]).optional()}).parse(input);
@@ -35,6 +36,7 @@ export async function actOnInvoice(actor: Actor, id: string, action: "CONFIRM" |
     if (!invoice) throw new AppError("NOT_FOUND", "Invoice not found", 404);
     if (action === "CANCEL") {
       if (invoice.status === "CANCELLED") return invoice;
+      if (await tx.checkoutAttempt.count({where: {invoiceId: id, status: {in: [...RESERVED_CHECKOUT_STATES]}}})) throw new AppError("CHECKOUT_PENDING", "Reconcile online checkout before cancelling", 409);
       if (invoice.status === "PAID" || await tx.payment.count({where: {invoiceId: id}})) throw new AppError("PAYMENTS_EXIST", "Paid invoices cannot be cancelled", 409);
     } else {
       if (invoice.status === "CONFIRMED" || invoice.status === "PAID") return invoice;
