@@ -4,7 +4,7 @@ Read PROJECT_PLAN.md first. Own substantial supporting business functionality, n
 
 ## Current state
 
-Baseline 2026-10-31: no business services existed. Requirements review is complete; every task below is Not started.
+Current implementation: catalog/configuration APIs and normalized migration, catalog quotation integration, product discounts, financial report API, invoice email outbox and repeatable synthetic seed are implemented. Historical baseline and integration notes below record the original work order. Remaining acceptance covers actual external providers, automatic overdue reminders, PDF attachments and scale measurements.
 
 ## Ordered work and acceptance
 
@@ -22,6 +22,8 @@ Own src/server/catalog, src/server/plans, src/server/templates, src/server/disco
 
 ## Progress log
 
+- Reporting uses PostgreSQL decimal aggregation, separate invoice/payment dates, bounded UTC date ranges, active unexpired subscriptions and customer access guards. Reconciliation tests passed. Invoice jobs enqueue atomically, use durable leases/retries and skip reserved demo recipients; concurrent claims/idempotency tests passed. All 26 database integration tests and 24 unit tests pass. Actual external SMTP delivery is not configured.
+
 - Added repeatable synthetic demo seed: 14 accounts, linked catalog including Odoo +560, three plans, a quotation template, 18 subscriptions and 90 invoices with recorded/partial payments. Applied all eight migrations to a separate local brightloop_demo database and ran the seed twice successfully. Credentials stay in ignored local environment configuration; no secrets are committed.
 
 - Connected catalog-backed quotation creation for staff/admin, server-resolved prices/taxes/variants, minimum quantity, plan availability, template validity and expiry checks. Billing snapshots product references and selects the largest eligible discount before tax. Capped use is consumed atomically; cancellation restores it once. All 24 PostgreSQL integration tests pass, including concurrent usage-cap and historical-price checks; TypeScript passes.
@@ -30,13 +32,15 @@ Own src/server/catalog, src/server/plans, src/server/templates, src/server/disco
 - Catalog snapshots, rule consumption, reporting, delivery and repeatable demo data are the current integration work. Deployment target requested by the user is mathewgeejo.dev.
 
 - Done: responsibilities and dependencies agreed. No supporting backend implementation completed at baseline.
-- Mathew has implemented the shared runtime/security, Prisma schema/migrations, subscription snapshots/lifecycle, invoice generation, durable billing/retry/heartbeat, recorded payments and Stripe reservation/webhook/reconciliation core. PostgreSQL/SMTP integration and live HTTP checks exist. Your catalog/plan/template/discount/report/notification tasks remain Not started.
+- Historical foundation: Mathew implemented the shared runtime/security, subscription/invoice/payment core and durable worker. The supporting catalog, template, discount, reporting and invoice notification work originally pending here is now integrated as described in the current progress entries above.
 - Existing Invoice/Payment/Subscription/CheckoutAttempt/ProviderEvent/ProviderReceipt/AuditEvent/WorkerHeartbeat models are authoritative. Do not recreate them. Shared guards are in src/server/core/permissions.ts; serializable financial retry support is in src/server/core/transaction.ts. Propose catalog/plan/outbox schema changes for Mathew to integrate.
 
-## Concrete next backend steps
+## Current interfaces and next backend steps
 
-- Start with products/variants and plans, then templates. Define stable product/variant/plan/template IDs and coordinate snapshot lookup interfaces with Mathew. Current quotations accept manual snapshots for ADMIN only; Mathew must connect plan availability, minimum quantity, lifecycle flags, prices/taxes and template validity before STAFF quotation creation is enabled.
-- Discount eligibility must identify the rule and eligible product/subscription lines as well as the saving. Mathew must add stable catalog references to snapshots and integrate line-specific allocation, atomic capped usage and cancellation restoration. The current calculator accepts an invoice-wide fixed saving; it does not automatically query discount rules.
+- Catalog: GET/POST `/api/v1/catalog/{products|plans|templates|taxes|discounts}` and PUT `/:id`. Lists support search/pagination; writes are admin-only. Staff reads omit cost prices. Variants archive by stable identity; template lines and discount targets are relational.
+- Quotations: catalog-backed input is handled in `src/server/catalog/quotation.ts`; financial integration and product-specific discounts are complete. Preserve the serializable billing/cancellation boundaries and historical snapshots.
 - Reporting should use normal Payment records for collected/allocated revenue and Invoice totals for billed revenue. ProviderReceipt rows preserve signed provider receipts, including exceptional/unallocated ones; do not add those to Payment totals a second time. Report exceptions separately. Outstanding/overdue excludes cancelled invoices; active counts must exclude expired terms even when auto-close is disabled. Filter invoice dates and payment dates separately.
-- Billing due jobs/retry state are implemented, but there is no generic email outbox yet. Propose a durable delivery/outbox model, idempotency rules and notification consumer interface; Mathew will enqueue within the invoice transaction and wire the consumer. Coordinate email/PDF presentation with Lea. Do not perform network email delivery inside billing transactions.
-- Add the Odoo +560 variant example and business demo fixtures as your own feature; Mathew's uniquely named integration fixtures are isolated test data, not product/demo seed data. Keep all rule mutations admin-only using the shared guard.
+- Reports: GET `/api/v1/reports?from=ISO&to=ISO` requires staff/admin. The upper bound is exclusive and ranges are limited to 366 days. Monetary totals are strings; monthly comparison converts only display proportions to numbers.
+- Invoice delivery: POST `/api/v1/invoices/:id/send` queues once or retries a failed job. The worker consumes `NotificationJob` leases outside billing transactions. Extend this for automatic overdue reminders/PDF attachments, then verify with an external SMTP account. Stable Message-ID cannot guarantee exactly-once SMTP delivery.
+- Demo seed: `npm run db:seed`; stable IDs, explicit demo password, separate *_demo database (or explicit override). Odoo +560 is included. Preserve real records and never reset existing passwords during seed reruns.
+- Remaining: scheduled next-period line updates (coordinate core service), automatic reminders/attachments, actual provider verification, deployment and the scale benchmark. Do not report these as complete based on local unit tests.

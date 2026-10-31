@@ -4,7 +4,7 @@ Read PROJECT_PLAN.md first. Own all UI and frontend integration, the second-larg
 
 ## Current state
 
-Baseline 2026-10-31: no frontend existed. Planning is complete; every task below is Not started. Mathew may create a minimal application landing page only to establish the runtime; replace it with the agreed product UI.
+Current implementation includes responsive auth/workspace/customer portal, subscription/invoice lists and details, account/staff forms, catalog management, customer management, quotation creation, reports and operations. These use real APIs and the populated demo database. Historical baseline notes below describe the initial work order. Remaining acceptance includes hosted providers, automatic reminders and the scale benchmark.
 
 ## Ordered work
 
@@ -24,20 +24,23 @@ Final acceptance: complete admin/staff/customer workflows on desktop/mobile; no 
 
 ## Progress log
 
+- Final populated browser checks passed: real template quotation -> quote -> confirm -> activate -> invoice generation -> partial manual payment -> queued invoice email; tax-rule creation; mobile reports without horizontal overflow; customer-owned invoice isolation and denied cross-customer/report access. TypeScript, 24 unit tests and 26 PostgreSQL integration tests pass. No production build run.
+
+- Added customer search/provisioning, product/variant/plan/template/tax/discount configuration forms, server-priced quotation composer, dated revenue/collection reports and admin operations. Populated browser navigation passed for every new page and real demo login. Browser mutation/customer-isolation checks are recorded in the final verification log.
+
 - Implemented responsive workspace navigation, live dashboard, subscription/invoice lists and detail pages, account/password/staff forms, lifecycle actions, manual payments, Checkout states and printable invoice view. Browser checks passed for signup/login, real empty dashboard and mobile navigation; populated workflows are the next check. TypeScript and 24 unit tests pass. No build run.
 - Latest priority: finish usable workflows quickly, connect normalized catalog and reporting, populate synthetic records and prepare mathewgeejo.dev deployment.
 
 - Done: role and handoff agreed. No UI implementation completed at baseline.
-- Frontend-first work is now In progress. Authentication screens, Tailwind/CSS tokens, shared API/decimal formatting helpers and responsive workspace components have been added. Live headless Edge checks passed for registration/session, a real empty dashboard, mobile navigation and overflow. TypeScript passed after refreshing development route types. Backend/catalog draft work is shelved in the Git stash named "Pranav catalog draft before frontend priority". New commits/pushes must authenticate as pranavpk-05 and use its linked noreply identity; no previous Mathew commits are being rewritten.
+- Historical frontend-first checkpoint: auth/design/workspace shell passed initial empty-data browser checks. The catalog draft stash was subsequently restored and integrated; do not reapply it. New commits/pushes must authenticate as pranavpk-05 and use its linked noreply identity; preserve previous history.
 - Origin fix: localhost/127.0.0.1/IPv6 loopback aliases now share an exact same-port development policy in authentication and business mutations. Production origins remain explicit. Browser signup/login succeeded on both localhost and 127.0.0.1; six targeted security tests and typecheck passed. Latest priority is quick functional completion, database integration, dummy data and deployment on mathewgeejo.dev.
-- Shared backend now available from Mathew: authenticated roles/session, reset email flow, subscription lists/drafts/actions/renewals, invoices/balances/payment history, recorded payment actions, Stripe checkout/status, and admin billing/payment operations. Read PROJECT_PLAN.md's API handoff; all frontend tasks above remain Not started.
-- Current verification: backend unit/integration tests use PostgreSQL 17 and a local SMTP receiver, plus live Next.js API smoke checks. Stripe provider calls are simulated until keys are configured. No hosted site or finished design exists.
+- Shared backend includes auth, subscriptions, invoices, payments, catalog configuration, customers, reports and queued delivery. The frontend connects these APIs; use the verification entries above for current status. Stripe provider calls remain simulated until real keys are configured. The local design/workflows are implemented; no hosted site is claimed.
 
-## Concrete next frontend steps
+## Interfaces to preserve and remaining frontend work
 
-- Start with app shell/auth, then real invoice lists/details and subscription views. Keep API route handlers in Mathew/Pranav ownership. The placeholder homepage may be replaced; no existing design system needs preserving.
-- Implement `/reset-password` for reset-token form submission and `/portal/invoices/[id]` for Stripe return URLs. Request a reset using a same-origin redirectTo. After checkout, poll invoice/checkout status; display pending/exception states and redirect only when the attempt is OPEN with a URL. Use a fresh UUID per new payment attempt and retain it for retries.
+- Preserve the responsive app shell, auth screens, real lists/detail views, customer/configuration/quotation forms, report dates and operations visibility. Shared visual components are in src/components; do not replace them with placeholder dashboards.
+- `/reset-password` and `/portal/invoices/[id]` are implemented. Preserve reset-token and Checkout pending/exception behavior. Request reset using a same-origin redirectTo; redirect to Checkout only when OPEN supplies a URL. Use a fresh UUID per new payment attempt and retain it for retries.
 - Subscription actions expose plan permissions. Resume skips paused periods; renewal may report BILLING_PENDING until original-term invoices catch up. Show server validation/conflict messages and refresh the record rather than pretending an action succeeded.
 - Recorded payment creation is staff/admin only. Customer portal payment uses Checkout. Amounts are decimal strings; format them without losing cents through Number conversion on large values. Never trust URL success parameters or calculate authoritative tax/discount/balance in the browser.
-- Customer search/detail editing, catalog-backed staff quotations, invoice PDF/download/send and discount configuration/report APIs still need backend coordination. Temporary contract fixtures can unblock layout, but do not mark those flows complete until their real endpoints exist.
+- Customer search/provisioning, catalog-backed quotations, tax/discount forms, printable invoices, queued Send invoice and reports are connected. Customer profile editing by staff, attached PDFs and automatic overdue reminders are remaining extensions; coordinate their APIs before adding controls.
 - Admin operations expose pending checkouts and unexpected receipts. Build visibility first; do not add a pretend exception-resolution/refund action because that endpoint does not exist.

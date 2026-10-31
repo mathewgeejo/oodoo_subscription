@@ -1,9 +1,10 @@
-import "dotenv/config";
+import {config} from "dotenv";
 import { setTimeout } from "node:timers/promises";
 import { db } from "../src/server/db";
 import { runBillingBatch } from "../src/server/billing/worker";
 import { reconcileCheckouts } from "../src/server/payments/stripe";
 import { runNotificationBatch } from "../src/server/notifications/service";
+config({path:[".env.local",".env"],quiet:true});
 const controller = new AbortController();
 process.once("SIGINT", () => controller.abort());
 process.once("SIGTERM", () => controller.abort());

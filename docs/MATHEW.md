@@ -32,6 +32,9 @@ Latest continuation priority: foundation/schema/auth/worker and the manual quota
 
 ## Progress log
 
+- Integration checkpoint after supporting modules: eight applied SQL migrations now cover normalized catalog/plan/template/tax/discount/outbox relations and database checks. Server-resolved catalog quotations, expiry, targeted pre-tax discounts, atomic use/restoration, report aggregates and invoice outbox are connected to the existing financial core. Docker Compose/Caddy deployment is prepared for mathewgeejo.dev; no hosted resources or production build were run. The separate local demo is seeded. Core ownership remains Mathew; this implementation phase uses the user's requested Pranav commit identity.
+- Current validation: TypeScript, 24 unit tests and 26 PostgreSQL integration tests pass; populated browser quotation-to-partial-payment workflow and customer isolation pass. Remaining release acceptance includes scheduled next-period line editing, automatic overdue reminders/PDF attachments, real external provider checks, actual container/release verification, DNS/hosting and scale measurements.
+
 - Planning checkpoint: ownership, dependencies and acceptance criteria written. All implementation tasks initially Not started.
 - Foundation checkpoint: Next.js/React entrypoints, environment example, TypeScript configuration and liveness route added. Health-route test passes using tsx. Dependency installation/runtime checks are still in progress; no build run.
 - Security contracts checkpoint: normalized emails, PDF password policy, pagination/money validation, role permissions and customer ownership guards implemented. Three security tests passed. Authentication/database integration remains separate.

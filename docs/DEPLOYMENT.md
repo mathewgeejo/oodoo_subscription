@@ -31,7 +31,7 @@ The repository includes one Docker image for web and worker, PostgreSQL 17, and 
 
    Remove those bootstrap variables afterward. Public registration creates customer accounts; administrators create staff in My account.
 
-5. Configure SMTP for password reset and invoice delivery. Configure Stripe test keys and add the signed webhook endpoint `https://mathewgeejo.dev/api/webhooks/stripe`. The application accepts test-mode payments. No real SMTP host or Stripe account has been configured/verified in this workspace.
+5. Configure SMTP for password reset and invoice delivery. Invoice generation adds a durable email job; the worker sends it outside the billing transaction with retry/backoff and skips reserved `.example`, `.test` and `.invalid` recipients. Staff can request delivery/retry with Send invoice. Delivery is at least once; a crash after SMTP acceptance can cause a duplicate, with a stable Message-ID to help deduplication. The email links to the authenticated printable invoice; it does not attach a PDF. Configure Stripe test keys and add the signed webhook endpoint `https://mathewgeejo.dev/api/webhooks/stripe`. The application accepts test-mode payments. No real SMTP host or Stripe account has been configured/verified in this workspace.
 
 For another hostname, change `APP_DOMAIN` and `BETTER_AUTH_URL` together. Extra browser origins require explicit `BETTER_AUTH_TRUSTED_ORIGINS`; no wildcard is needed. Keep one canonical hostname to avoid split sessions.
 

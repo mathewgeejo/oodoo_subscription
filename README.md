@@ -2,7 +2,7 @@
 
 A subscription and billing workspace built with Next.js, React, TypeScript, Better Auth, Prisma and PostgreSQL 17. Customers manage their own subscriptions and invoices; administrators and staff handle quotations, billing and payments. A separate worker runs recurring billing and payment reconciliation.
 
-Read [the shared plan](docs/PROJECT_PLAN.md) and your handoff: [Mathew](docs/MATHEW.md), [Lea](docs/LEA.md), [Pranav](docs/PRANAV.md).
+The application includes a responsive customer portal, server-priced quotations, recurring invoices, partial payments, configuration screens and financial reports. Read [the shared plan](docs/PROJECT_PLAN.md) and your handoff: [Mathew](docs/MATHEW.md), [Lea](docs/LEA.md), [Pranav](docs/PRANAV.md).
 
 ## Development
 
@@ -31,7 +31,7 @@ Set `ADMIN_EMAIL`, `ADMIN_PASSWORD` and optionally `ADMIN_NAME` temporarily, the
 
 `GET /api/health` checks the process; `/api/ready` checks database connectivity. Use `npm test` and `npm run typecheck` for verification. Do not run routine builds. Never commit credentials. The responsive workspace connects to real subscription, invoice, account and payment APIs. The customer portal includes permitted lifecycle actions, Checkout status and printable invoices; use the browser print dialog to save an invoice as PDF.
 
-The normalized catalog includes products, archived variants, plans, taxes and templates. Quotations snapshot server-resolved prices and terms; discounts apply to eligible lines before tax and consume usage atomically. Customer, catalog and report screens are being integrated. SMTP invoice delivery and actual hosted Stripe Checkout still require configuration and end-to-end verification.
+The normalized catalog includes products, archived variants, plans, taxes and templates. Quotations snapshot server-resolved prices and terms; discounts apply to eligible lines before tax and consume usage atomically. Customer management, catalog forms, quotation creation, reports and operations use real APIs. Invoice email queues use the worker with retries and skip demo addresses; external SMTP delivery and hosted Stripe Checkout still require provider configuration and verification.
 
 Run `npm run worker` as a separate process for recurring billing. It polls durable due dates every five seconds, retries failures with persisted backoff, and records a heartbeat. Admins inspect failures or request retries at `/api/v1/operations/billing`. Stop the development server before running `db:generate` on Windows because its loaded Prisma engine can lock the DLL.
 
