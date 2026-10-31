@@ -22,6 +22,9 @@ Own src/server/catalog, src/server/plans, src/server/templates, src/server/disco
 
 ## Progress log
 
+- Implemented products/archived variants, plan/tax/template/discount management APIs and normalized SQL migration with foreign keys, money/date/usage checks and report indexes. Active variants retain their IDs; removed variants remain available to historical records. Staff cannot modify configuration or inspect cost prices. Database integration and contract tests passed on PostgreSQL 17.
+- Catalog snapshots, rule consumption, reporting, delivery and repeatable demo data are the current integration work. Deployment target requested by the user is mathewgeejo.dev.
+
 - Done: responsibilities and dependencies agreed. No supporting backend implementation completed at baseline.
 - Mathew has implemented the shared runtime/security, Prisma schema/migrations, subscription snapshots/lifecycle, invoice generation, durable billing/retry/heartbeat, recorded payments and Stripe reservation/webhook/reconciliation core. PostgreSQL/SMTP integration and live HTTP checks exist. Your catalog/plan/template/discount/report/notification tasks remain Not started.
 - Existing Invoice/Payment/Subscription/CheckoutAttempt/ProviderEvent/ProviderReceipt/AuditEvent/WorkerHeartbeat models are authoritative. Do not recreate them. Shared guards are in src/server/core/permissions.ts; serializable financial retry support is in src/server/core/transaction.ts. Propose catalog/plan/outbox schema changes for Mathew to integrate.

@@ -1,0 +1,23 @@
+import {test, after} from "node:test";
+import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
+import {db} from "../../src/server/db";
+import {saveCatalog,listCatalog} from "../../src/server/catalog/service";
+if(!process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!==process.env.TEST_DATABASE_URL || !new URL(process.env.TEST_DATABASE_URL).pathname.endsWith("_test")) throw new Error("Use a dedicated *_test database");
+after(()=>db.$disconnect());
+test("catalog links templates and archives variants without breaking historical references",async()=>{
+  const admin={id:randomUUID(),role:"ADMIN" as const};
+  const staff={id:randomUUID(),role:"STAFF" as const};
+  const input={name:`Seats ${randomUUID()}`,type:"SERVICE",salesPrice:"100",costPrice:"20",variants:[{name:"Odoo",priceAdjustment:"560"}]};
+  const product=await saveCatalog(admin,"products",input);
+  const variant=await db.productVariant.findFirstOrThrow({where:{productId:product.id}});
+  const plan=await saveCatalog(admin,"plans",{name:"Monthly",basePrice:"50",cadence:"MONTHLY"});
+  const template=await saveCatalog(admin,"templates",{name:"Starter",planId:plan.id,validityDays:14,lines:[{productId:product.id,variantId:variant.id,quantity:2}]});
+  await saveCatalog(admin,"products",{...input,variants:[]},product.id);
+  assert.equal((await db.productVariant.findUniqueOrThrow({where:{id:variant.id}})).active,false);
+  assert.equal((await db.templateLine.findFirstOrThrow({where:{templateId:template.id}})).variantId,variant.id);
+  const visible=await listCatalog(staff,"products",{search:input.name});
+  assert.equal("costPrice" in visible.data[0],false);
+  await assert.rejects(()=>saveCatalog(staff,"products",input));
+  await assert.rejects(()=>db.taxRule.create({data:{name:"Invalid tax",percent:"101"}}));
+});

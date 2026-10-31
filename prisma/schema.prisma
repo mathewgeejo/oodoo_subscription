@@ -38,6 +38,22 @@ enum CheckoutStatus {
   FAILED
   EXCEPTION
 }
+enum ProductType {
+  SERVICE
+  DIGITAL
+  PHYSICAL
+}
+enum DiscountKind {
+  FIXED
+  PERCENTAGE
+}
+enum DeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+}
 model User {
   id            String   @id
   name          String
@@ -50,6 +66,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   subscriptions Subscription[]
+  @@index([role, name])
   @@map("users")
 }
 model Session {
@@ -102,6 +119,12 @@ model Subscription {
   number            String @unique
   customerId        String
   customer          User @relation(fields: [customerId], references: [id])
+  planId            String?
+  plan              Plan? @relation(fields: [planId], references: [id])
+  templateId        String?
+  template          QuotationTemplate? @relation(fields: [templateId], references: [id])
+  quotationValidityDays Int @default(14)
+  quotationExpiresAt DateTime?
   status            SubscriptionStatus @default(DRAFT)
   planName          String
   cadence           Cadence
@@ -130,6 +153,7 @@ model Subscription {
   lines             SubscriptionLine[]
   invoices          Invoice[]
   @@index([status, nextBillingAt])
+  @@index([status, expiresAt])
   @@index([customerId, createdAt])
 }
 model SubscriptionLine {
@@ -140,6 +164,10 @@ model SubscriptionLine {
   quantity       Int
   unitPrice      Decimal @db.Decimal(18, 2)
   taxPercent     Decimal @db.Decimal(5, 2)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id])
+  variantId      String?
+  variant        ProductVariant? @relation(fields: [variantId], references: [id])
   @@index([subscriptionId])
 }
 model Invoice {
@@ -164,8 +192,11 @@ model Invoice {
   lines          InvoiceLine[]
   payments       Payment[]
   checkouts      CheckoutAttempt[]
+  discountUse    DiscountUse?
+  notifications  NotificationJob[]
   @@unique([subscriptionId, periodIndex])
   @@index([status, dueAt])
+  @@index([createdAt])
 }
 model InvoiceLine {
   id          String @id @default(cuid())
@@ -179,6 +210,10 @@ model InvoiceLine {
   discount    Decimal @db.Decimal(18, 2)
   tax         Decimal @db.Decimal(18, 2)
   total       Decimal @db.Decimal(18, 2)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
   @@index([invoiceId])
 }
 model Payment {
@@ -247,4 +282,142 @@ model ProviderReceipt {
   outcome           String
   createdAt         DateTime @default(now())
   @@index([outcome, createdAt])
+}
+
+model Product {
+  id           String @id @default(cuid())
+  name         String
+  type         ProductType
+  salesPrice   Decimal @db.Decimal(18, 2)
+  costPrice    Decimal @db.Decimal(18, 2)
+  notes        String @default("")
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  variants     ProductVariant[]
+  taxRuleId    String?
+  taxRule      TaxRule? @relation(fields: [taxRuleId], references: [id])
+  templateLines TemplateLine[]
+  subscriptionLines SubscriptionLine[]
+  invoiceLines InvoiceLine[]
+  discountTargets DiscountProduct[]
+  @@index([active, name])
+}
+model ProductVariant {
+  id             String @id @default(cuid())
+  productId      String
+  product        Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name           String
+  priceAdjustment Decimal @db.Decimal(18, 2)
+  active          Boolean @default(true)
+  templateLines TemplateLine[]
+  subscriptionLines SubscriptionLine[]
+  invoiceLines InvoiceLine[]
+  @@unique([productId, name])
+}
+model Plan {
+  id              String @id @default(cuid())
+  name            String
+  basePrice       Decimal @db.Decimal(18, 2)
+  baseTaxPercent  Decimal @default(0) @db.Decimal(5, 2)
+  cadence         Cadence
+  minimumQuantity Int @default(1)
+  availableFrom   DateTime?
+  availableUntil  DateTime?
+  canPause        Boolean @default(false)
+  canRenew        Boolean @default(true)
+  canCloseEarly   Boolean @default(false)
+  autoClose       Boolean @default(true)
+  active          Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  templates       QuotationTemplate[]
+  subscriptions   Subscription[]
+  taxRuleId       String?
+  taxRule         TaxRule? @relation(fields: [taxRuleId], references: [id])
+  @@index([active, name])
+}
+model QuotationTemplate {
+  id           String @id @default(cuid())
+  name         String
+  planId       String
+  plan         Plan @relation(fields: [planId], references: [id])
+  validityDays Int @default(14)
+  lines        TemplateLine[]
+  subscriptions Subscription[]
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+model TaxRule {
+  id         String @id @default(cuid())
+  name       String
+  percent    Decimal @db.Decimal(5, 2)
+  active     Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  products   Product[]
+  plans      Plan[]
+}
+model DiscountRule {
+  id              String @id @default(cuid())
+  name            String
+  kind            DiscountKind
+  value           Decimal @db.Decimal(18, 2)
+  minimumPurchase Decimal @default(0) @db.Decimal(18, 2)
+  minimumQuantity Int @default(1)
+  startsAt        DateTime
+  endsAt          DateTime
+  usageLimit      Int
+  usageCount      Int @default(0)
+  targets         DiscountProduct[]
+  uses            DiscountUse[]
+  active          Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([active, startsAt, endsAt])
+}
+model TemplateLine {
+  id         String @id @default(cuid())
+  templateId String
+  template   QuotationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id])
+  quantity   Int
+  @@index([templateId])
+}
+model DiscountProduct {
+  discountId String
+  discount   DiscountRule @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
+  @@id([discountId, productId])
+}
+model DiscountUse {
+  id         String @id @default(cuid())
+  discountId String
+  discount   DiscountRule @relation(fields: [discountId], references: [id])
+  invoiceId  String @unique
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  amount     Decimal @db.Decimal(18, 2)
+  restoredAt DateTime?
+  createdAt  DateTime @default(now())
+  @@index([discountId])
+}
+model NotificationJob {
+  id             String @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice @relation(fields: [invoiceId], references: [id])
+  kind           String
+  idempotencyKey String @unique
+  status         DeliveryStatus @default(PENDING)
+  attempts       Int @default(0)
+  nextAttemptAt  DateTime @default(now())
+  leaseUntil     DateTime?
+  sentAt         DateTime?
+  lastError      String?
+  createdAt      DateTime @default(now())
+  @@index([status, nextAttemptAt])
 }
