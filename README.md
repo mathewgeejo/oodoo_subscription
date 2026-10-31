@@ -22,6 +22,8 @@ For online payment, configure `STRIPE_SECRET_KEY` with a test key and `STRIPE_WE
 
 ## Hosted demo
 
+For the populated local demo and Docker/HTTPS deployment on **mathewgeejo.dev**, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The database design is documented in [docs/DATABASE.md](docs/DATABASE.md). The responsive workspace now connects to real subscription, invoice, account and payment APIs; synthetic demo records are installed with `npm run db:seed`.
+
 `render.yaml` defines a Node 22 web service, separate worker and private PostgreSQL 17 database in Singapore. It has not been deployed. Create the Blueprint in your Render account and provide the prompted public HTTPS application URL, SMTP credentials, Stripe test key and webhook secret. These plans allocate paid resources only when you provision them; no hosted resources have been created during implementation.
 
 Automatic deploys are disabled so frequent feature pushes do not trigger builds. When ready to publish, manually deploy the web service, let its pre-deploy migration finish, and deploy the worker from the same commit. Bootstrap the administrator in the web service shell with temporary environment values. Check `/api/health`, `/api/ready`, signup/login/reset, admin billing operations and an actual Stripe test Checkout before calling the hosted demo verified. Ensure the hosting proxy supplies trustworthy client IP headers for authentication rate limits.

@@ -4,5 +4,6 @@ out/
 coverage/
 .env*
 !.env.example
+!.env.production.example
 *.tsbuildinfo
 *.log

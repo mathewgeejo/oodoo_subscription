@@ -1,0 +1,4 @@
+{$APP_DOMAIN:mathewgeejo.dev} {
+  encode zstd gzip
+  reverse_proxy web:3000
+}

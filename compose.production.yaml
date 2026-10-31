@@ -1,0 +1,74 @@
+name: brightloop
+x-app: &app
+  image: brightloop-app:local
+  build: .
+  init: true
+  restart: unless-stopped
+  env_file: .env.production
+  environment:
+    NODE_ENV: production
+    DATABASE_URL: postgresql://brightloop:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/brightloop
+    BETTER_AUTH_URL: https://${APP_DOMAIN:-mathewgeejo.dev}
+    NEXT_TELEMETRY_DISABLED: "1"
+    CHECKPOINT_DISABLE: "1"
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brightloop
+      POSTGRES_DB: brightloop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brightloop -d brightloop"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  web:
+    <<: *app
+    command:
+      ["sh", "-c", "npm run db:migrate && npm start -- --hostname 0.0.0.0"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  worker:
+    <<: *app
+    command: ["npm", "run", "worker"]
+    stop_grace_period: 60s
+    depends_on:
+      web:
+        condition: service_healthy
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-mathewgeejo.dev}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
