@@ -178,6 +178,7 @@ model Payment {
   paidAt     DateTime
   note       String?
   reference  String @unique
+  externalReference String?
   recordedBy String
   createdAt  DateTime @default(now())
   @@index([invoiceId])

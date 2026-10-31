@@ -6,6 +6,8 @@ import { createDraft, actOnSubscription } from "../../src/server/subscriptions/s
 import { billSubscription } from "../../src/server/billing/service";
 import { provisionUser } from "../../src/server/auth/provision";
 import type { Actor } from "../../src/server/core/permissions";
+import { getInvoice, actOnInvoice, listInvoices } from "../../src/server/invoices/service";
+import { recordManualPayment } from "../../src/server/payments/manual";
 
 if (!process.env.TEST_DATABASE_URL || process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL || !new URL(process.env.TEST_DATABASE_URL).pathname.endsWith("_test")) throw new Error("Set matching DATABASE_URL and TEST_DATABASE_URL for a dedicated *_test database");
 let actor: Actor;
@@ -54,4 +56,34 @@ test("pause applies at the next boundary without creating a charge for the pause
   await billSubscription(subscription.id, new Date("2026-02-01T00:00:00Z"));
   assert.equal((await db.subscription.findUniqueOrThrow({where: {id: subscription.id}})).status, "PAUSED");
   assert.equal(await db.invoice.count({where: {subscriptionId: subscription.id}}), 1);
+});
+test("partial payments retry idempotently, close the balance, and prevent cancellation", async () => {
+  const sub = await active();
+  const invoice = (await billSubscription(sub.id, jan))!;
+  const input = {idempotencyKey: randomUUID(), amount: "50", method: "BANK_TRANSFER", externalReference: "TEST-REF"};
+  const first = await recordManualPayment(actor, invoice.id, input);
+  assert.equal((await recordManualPayment(actor, invoice.id, input)).id, first.id);
+  await assert.rejects(() => recordManualPayment(actor, invoice.id, {...input, amount: "51"}));
+  assert.equal((await getInvoice({id: customerId, role: "CUSTOMER"}, invoice.id)).balance, "91.60");
+  await recordManualPayment(actor, invoice.id, {idempotencyKey: randomUUID(), amount: "91.60", method: "CASH"});
+  assert.equal((await getInvoice(actor, invoice.id)).status, "PAID");
+  await assert.rejects(() => actOnInvoice(actor, invoice.id, "CANCEL"));
+});
+test("concurrent payments cannot overpay and customers cannot record manual payments", async () => {
+  const sub = await active();
+  const invoice = (await billSubscription(sub.id, jan))!;
+  const results = await Promise.allSettled(Array.from({length: 2}, () => recordManualPayment(actor, invoice.id, {idempotencyKey: randomUUID(), amount: "100", method: "CARD"})));
+  assert.equal(results.filter(x => x.status === "fulfilled").length, 1);
+  assert.equal((await getInvoice(actor, invoice.id)).balance, "41.60");
+  await assert.rejects(() => recordManualPayment({id: customerId, role: "CUSTOMER"}, invoice.id, {idempotencyKey: randomUUID(), amount: "1", method: "CASH"}));
+  await assert.rejects(() => getInvoice({id: "other-customer", role: "CUSTOMER"}, invoice.id));
+  assert.equal((await listInvoices({id: "other-customer", role: "CUSTOMER"}, {})).pagination.total, 0);
+  assert.ok((await listInvoices({id: customerId, role: "CUSTOMER"}, {})).data.some(row => row.id === invoice.id));
+});
+test("cancelled invoices stop accepting payments and expose zero receivable", async () => {
+  const sub = await active();
+  const invoice = (await billSubscription(sub.id, jan))!;
+  await actOnInvoice(actor, invoice.id, "CANCEL");
+  assert.equal((await getInvoice(actor, invoice.id)).balance, "0.00");
+  await assert.rejects(() => recordManualPayment(actor, invoice.id, {idempotencyKey: randomUUID(), amount: "1", method: "CASH"}));
 });
