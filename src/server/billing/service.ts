@@ -40,7 +40,7 @@ export async function billSubscription(id: string, now = new Date(), actorId = "
       subtotal: amounts.subtotal, discount: amounts.discount, tax: amounts.tax, total: amounts.total,
       lines: {create: amounts.lines},
     }});
-    await tx.subscription.update({where: {id}, data: {nextPeriodIndex: index + 1, nextBillingAt: end, version: {increment: 1}}});
+    await tx.subscription.update({where: {id}, data: {nextPeriodIndex: index + 1, nextBillingAt: end, billingFailureCount: 0, billingRetryAt: null, billingLastError: null, version: {increment: 1}}});
     if (!existing) await tx.auditEvent.create({data: {actorId, action: "invoice.generated", resourceId: invoice.id}});
     return invoice;
   });

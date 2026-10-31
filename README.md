@@ -15,3 +15,5 @@ For integration tests, create a dedicated database whose name ends in `_test`, m
 Set `ADMIN_EMAIL`, `ADMIN_PASSWORD` and optionally `ADMIN_NAME` temporarily, then run `npm run admin:bootstrap` to create the first administrator after migrating. This command refuses a second bootstrap. Remove the password afterward. Staff are created through the admin-only API, not public registration.
 
 `GET /api/health` is process liveness, not database readiness. Use `npm test` and `npm run typecheck` for verification. Do not run routine builds. Never commit credentials. The initial page is a runtime placeholder for Lea's UI; Mathew's handoff tracks backend implementation and limitations.
+
+Run `npm run worker` as a separate process for recurring billing. It polls durable due dates every five seconds, retries failures with persisted backoff, and records a heartbeat. Admins inspect failures or request retries at `/api/v1/operations/billing`. Stop the development server before running `db:generate` on Windows because its loaded Prisma engine can lock the DLL.

@@ -8,6 +8,7 @@ import { provisionUser } from "../../src/server/auth/provision";
 import type { Actor } from "../../src/server/core/permissions";
 import { getInvoice, actOnInvoice, listInvoices } from "../../src/server/invoices/service";
 import { recordManualPayment } from "../../src/server/payments/manual";
+import { runBillingBatch } from "../../src/server/billing/worker";
 
 if (!process.env.TEST_DATABASE_URL || process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL || !new URL(process.env.TEST_DATABASE_URL).pathname.endsWith("_test")) throw new Error("Set matching DATABASE_URL and TEST_DATABASE_URL for a dedicated *_test database");
 let actor: Actor;
@@ -86,4 +87,16 @@ test("cancelled invoices stop accepting payments and expose zero receivable", as
   await actOnInvoice(actor, invoice.id, "CANCEL");
   assert.equal((await getInvoice(actor, invoice.id)).balance, "0.00");
   await assert.rejects(() => recordManualPayment(actor, invoice.id, {idempotencyKey: randomUUID(), amount: "1", method: "CASH"}));
+});
+test("worker persists heartbeat and backs off failed jobs while billing healthy subscriptions", async () => {
+  const broken = await active();
+  await db.subscription.update({where: {id: broken.id}, data: {basePrice: "9999999999999999.99"}});
+  const healthy = await active();
+  await runBillingBatch(jan, 1000);
+  const failed = await db.subscription.findUniqueOrThrow({where: {id: broken.id}});
+  assert.equal(failed.billingFailureCount, 1);
+  assert.ok(failed.billingRetryAt! > jan);
+  assert.equal(await db.invoice.count({where: {subscriptionId: broken.id}}), 0);
+  assert.equal(await db.invoice.count({where: {subscriptionId: healthy.id}}), 1);
+  assert.ok(await db.workerHeartbeat.findUnique({where: {id: "billing"}}));
 });

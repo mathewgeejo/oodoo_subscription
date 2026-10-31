@@ -114,6 +114,9 @@ model Subscription {
   pendingAction     String?
   pendingActionAt   DateTime?
   version           Int @default(0)
+  billingFailureCount Int @default(0)
+  billingRetryAt    DateTime?
+  billingLastError  String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   lines             SubscriptionLine[]
@@ -191,4 +194,8 @@ model AuditEvent {
   metadata   Json?
   createdAt  DateTime @default(now())
   @@index([resourceId, createdAt])
+}
+model WorkerHeartbeat {
+  id        String @id
+  lastSeen  DateTime
 }
