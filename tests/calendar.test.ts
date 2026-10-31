@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { duePeriods, periodBoundary } from "../src/server/billing/calendar";
+import { duePeriods, periodBoundary, firstPeriodOnOrAfter } from "../src/server/billing/calendar";
 const date = (value: string) => new Date(value + "T00:00:00Z");
 test("monthly boundaries recover original month-end after clamping", () => {
   const anchor = date("2024-01-31");
@@ -17,4 +17,9 @@ test("catch-up includes due boundary, excludes expiry, and is bounded", () => {
 test("monthly billing uses business dates and daily billing preserves local time across DST", () => {
   assert.equal(periodBoundary(new Date("2026-02-28T18:30:00Z"), "MONTHLY", 1, "Asia/Kolkata").toISOString(), "2026-03-31T18:30:00.000Z");
   assert.equal(periodBoundary(new Date("2026-03-07T17:00:00Z"), "DAILY", 1, "America/New_York").toISOString(), "2026-03-08T16:00:00.000Z");
+});
+test("resume search skips gaps, includes exact boundaries and never goes backwards", () => {
+  assert.equal(firstPeriodOnOrAfter(date("2026-01-01"), "MONTHLY", 1, date("2026-03-15")), 3);
+  assert.equal(firstPeriodOnOrAfter(date("2026-01-01"), "MONTHLY", 1, date("2026-03-01")), 2);
+  assert.equal(firstPeriodOnOrAfter(date("2026-01-01"), "MONTHLY", 5, date("2026-03-01")), 5);
 });

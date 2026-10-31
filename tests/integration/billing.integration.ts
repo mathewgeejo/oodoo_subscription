@@ -2,7 +2,7 @@ import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db } from "../../src/server/db";
-import { createDraft, actOnSubscription } from "../../src/server/subscriptions/service";
+import { createDraft, actOnSubscription, renewSubscription } from "../../src/server/subscriptions/service";
 import { billSubscription } from "../../src/server/billing/service";
 import { provisionUser } from "../../src/server/auth/provision";
 import type { Actor } from "../../src/server/core/permissions";
@@ -57,6 +57,32 @@ test("pause applies at the next boundary without creating a charge for the pause
   await billSubscription(subscription.id, new Date("2026-02-01T00:00:00Z"));
   assert.equal((await db.subscription.findUniqueOrThrow({where: {id: subscription.id}})).status, "PAUSED");
   assert.equal(await db.invoice.count({where: {subscriptionId: subscription.id}}), 1);
+  await assert.rejects(() => actOnSubscription({id: "other-customer", role: "CUSTOMER"}, subscription.id, "RESUME", new Date("2026-03-15T00:00:00Z")));
+  const resumed = await actOnSubscription({id: customerId, role: "CUSTOMER"}, subscription.id, "RESUME", new Date("2026-03-15T00:00:00Z"));
+  assert.equal(resumed.nextPeriodIndex, 3);
+  assert.equal(await billSubscription(subscription.id, new Date("2026-03-15T00:00:00Z")), null);
+  await billSubscription(subscription.id, new Date("2026-04-01T00:00:00Z"));
+  assert.equal(await db.invoice.count({where: {subscriptionId: subscription.id}}), 2);
+});
+test("renewal preserves history and does not bill a closed gap", async () => {
+  const sub = await active("2026-03-01T00:00:00Z");
+  const now = new Date("2026-04-01T00:00:00Z");
+  await assert.rejects(() => renewSubscription(actor, sub.id, new Date("2026-07-01T00:00:00Z"), now), /Process due billing/);
+  for (let i = 0; i < 3; i++) await billSubscription(sub.id, now);
+  const renewed = await renewSubscription({id: customerId, role: "CUSTOMER"}, sub.id, new Date("2026-07-01T00:00:00Z"), now);
+  assert.equal(renewed.nextPeriodIndex, 3);
+  assert.equal(renewed.status, "ACTIVE");
+  await billSubscription(sub.id, now);
+  assert.equal(await db.invoice.count({where: {subscriptionId: sub.id}}), 3);
+  assert.equal(await db.auditEvent.count({where: {resourceId: sub.id, action: "subscription.renewed"}}), 1);
+});
+test("renewal skips expired gaps even when automatic closure is disabled", async () => {
+  const sub = await active("2026-03-01T00:00:00Z");
+  await db.subscription.update({where: {id: sub.id}, data: {autoClose: false}});
+  const now = new Date("2026-04-01T00:00:00Z");
+  for (let i = 0; i < 3; i++) await billSubscription(sub.id, now);
+  const renewed = await renewSubscription(actor, sub.id, new Date("2026-07-01T00:00:00Z"), now);
+  assert.equal(renewed.nextPeriodIndex, 3);
 });
 test("partial payments retry idempotently, close the balance, and prevent cancellation", async () => {
   const sub = await active();

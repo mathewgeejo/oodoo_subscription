@@ -23,3 +23,16 @@ export function duePeriods(anchor: Date, cadence: Cadence, nextIndex: number, no
   }
   return periods;
 }
+/** Binary search skips paused/closed periods without iterating every missed day. */
+export function firstPeriodOnOrAfter(anchor: Date, cadence: Cadence, minimumIndex: number, now: Date, timeZone = "UTC") {
+  if (!Number.isFinite(now.getTime())) throw new Error("Invalid resume date");
+  let low = minimumIndex;
+  let high = Math.max(minimumIndex, 1);
+  while (periodBoundary(anchor, cadence, high, timeZone) < now) high *= 2;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (periodBoundary(anchor, cadence, middle, timeZone) < now) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
