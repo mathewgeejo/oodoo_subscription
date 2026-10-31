@@ -4,6 +4,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import nodemailer from "nodemailer";
 import { db } from "../db";
 import { emailSchema, passwordSchema } from "../core/contracts";
+import { configuredTrustedOrigins } from "./origins";
 
 export function createAuth() {
   const secret = process.env.BETTER_AUTH_SECRET;
@@ -11,6 +12,7 @@ export function createAuth() {
   if (!secret || secret.length < 32 || secret.startsWith("replace-") || !baseURL) throw new Error("Configure BETTER_AUTH_SECRET and BETTER_AUTH_URL");
   return betterAuth({
     secret, baseURL,
+    trustedOrigins: configuredTrustedOrigins(),
     database: prismaAdapter(db, { provider: "postgresql" }),
     user: { additionalFields: { role: { type: ["ADMIN", "STAFF", "CUSTOMER"], defaultValue: "CUSTOMER", input: false } } },
     session: { expiresIn: 60 * 60 * 24 * 7, cookieCache: { enabled: false } },
