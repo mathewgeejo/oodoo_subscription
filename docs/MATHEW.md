@@ -32,3 +32,4 @@ Inspect repository and latest progress before proceeding. Finish foundation and 
 
 - Planning checkpoint: ownership, dependencies and acceptance criteria written. All implementation tasks initially Not started.
 - Foundation checkpoint: Next.js/React entrypoints, environment example, TypeScript configuration and liveness route added. Health-route test passes using tsx. Dependency installation/runtime checks are still in progress; no build run.
+- Security contracts checkpoint: normalized emails, PDF password policy, pagination/money validation, role permissions and customer ownership guards implemented. Three security tests passed. Authentication/database integration remains separate.
