@@ -66,6 +66,8 @@ Sign in with your configured `DEMO_SEED_PASSWORD`:
 
 The seed is additive and repeatable: stable IDs prevent duplicates, existing records are retained and existing passwords are not reset. It requires a database name ending in `_demo`; any other database requires explicit `ALLOW_DEMO_SEED=true`. Keep synthetic data separate from real customers. Passwords and local environment files are excluded from Git.
 
+To see sample records while signed in with your own customer account, set `DEMO_CUSTOMER_EMAIL` to that existing account's email in your local environment file and run `npm run db:seed` again. This adds 7 subscriptions and 24 invoices to that customer's portal, including paid, partially paid, overdue and cancelled examples. It keeps the customer's role, password and existing records unchanged. Invoice email snapshots use reserved demo addresses. Other customer accounts continue to see only their own records.
+
 This workspace already has a populated local demo configured for `http://localhost:3100`. Its generated password is in the ignored `.env.local` file as `DEMO_SEED_PASSWORD`.
 
 ## Deploy on mathewgeejo.dev

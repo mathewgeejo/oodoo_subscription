@@ -22,6 +22,8 @@ Own src/server/catalog, src/server/plans, src/server/templates, src/server/disco
 
 ## Progress log
 
+- Added optional DEMO_CUSTOMER_EMAIL seeding for an existing customer's portal: 7 subscriptions and 24 invoices with synthetic payment history. This addresses an empty portal when signing in with a personal account instead of a seeded demo login. Existing permissions and records are preserved. Seed executed for the current local customer; browser inspection showed dashboard counts of 7 subscriptions, 24 invoices, 12 paid and 11 awaiting payment, plus populated list rows. No tests or builds run for this change, as requested.
+
 - Reporting uses PostgreSQL decimal aggregation, separate invoice/payment dates, bounded UTC date ranges, active unexpired subscriptions and customer access guards. Reconciliation tests passed. Invoice jobs enqueue atomically, use durable leases/retries and skip reserved demo recipients; concurrent claims/idempotency tests passed. All 26 database integration tests and 24 unit tests pass. Actual external SMTP delivery is not configured.
 
 - Added repeatable synthetic demo seed: 14 accounts, linked catalog including Odoo +560, three plans, a quotation template, 18 subscriptions and 90 invoices with recorded/partial payments. Applied all eight migrations to a separate local brightloop_demo database and ran the seed twice successfully. Credentials stay in ignored local environment configuration; no secrets are committed.
