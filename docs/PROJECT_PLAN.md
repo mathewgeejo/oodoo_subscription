@@ -39,4 +39,34 @@ Deploy same commit for web/worker; migrate once before workers start. Observe wo
 ## Progress
 
 - Done: PDF review, repository baseline inspection and ownership agreement.
+- Implemented by Mathew: Next.js runtime/contracts, PostgreSQL schema and seven applied migrations, signup/login/reset with local SMTP verification, roles/ownership, admin/staff provisioning, manual subscription snapshots, lifecycle/customer resume/renewal, persisted recurring invoices, invoice actions, partial recorded payments, durable worker/retries/heartbeat, and Stripe test-mode adapter/reservations/signed webhook reconciliation.
+- Verification: 18 unit tests, PostgreSQL integration tests, TypeScript checks and live Next.js HTTP checks. Gateway provider calls are simulated; signatures/database transactions are real. See Mathew's latest log for final counts. No build or deployment has been run.
+- Remaining Mathew integration: catalog/plan/template references and quotation validity, scheduled quantity/add-on changes, product-specific discount allocation and atomic usage/restoration, invoice document/delivery wiring, actual Stripe test-account verification, hosting and performance acceptance.
+- Lea's UI/portal and Pranav's catalog/configuration/reports/notification modules are Not started. The homepage is only a runtime placeholder. Synthetic integration fixtures are not business demo seed data.
+- Render Blueprint is prepared and validated against the official schema. Hosting needs account/provider configuration; automatic deploys are disabled. No hosted resources have been created.
 - Implementation evidence and remaining work: see personal handoffs. A passing unit test alone does not establish deployed or database-integrated completion.
+
+## Initial API handoff
+
+- `GET /api/health`: public process liveness; does not prove database readiness.
+- `GET /api/ready`: public database connectivity readiness. Worker progress is a separate admin operation.
+- `/api/auth/*`: Better Auth handlers for signup, login, sessions and password reset. Public signup always creates CUSTOMER.
+- `GET /api/v1/me`: authenticated actor ID/role.
+- `POST /api/v1/staff`: ADMIN only; name/email/password; safe user response without credentials.
+- `GET /api/v1/subscriptions?page=1&pageSize=25`: staff/admin see business records, customers see only their own; response contains data and pagination.
+- `POST /api/v1/subscriptions`: initial admin-only manual quotation draft using `subscriptionDraftSchema`. Staff plan-backed creation waits for Pranav's plan/catalog integration. Do not treat manual input prices as a customer purchase API.
+- `POST /api/v1/subscriptions/:id/actions`: staff/admin actions from `actionSchema`; customers can pause/resume/close their own subscriptions if plan permissions allow. Pause/active early closure run at the next boundary. Resume skips inactive periods and starts at the next remaining boundary.
+- `POST /api/v1/subscriptions/:id/renew`: owner or staff/admin; ISO `expiresAt` extends the contract. Original-term billing must catch up before expired renewal; closed gaps are not charged. Renewals retain audit history.
+- `POST /api/v1/subscriptions/:id/bill`: staff/admin generates one due period; the worker handles routine scheduling/catch-up.
+- `GET /api/v1/invoices` and `GET /api/v1/invoices/:id`: customer-owned or internal views, status filters/pagination and server-calculated balances. `POST /:id/actions` supports CONFIRM/CANCEL for staff/admin; payments or online reservations block cancellation.
+- `GET /api/v1/invoices/:id/payments`: scoped paginated payment history. `POST` is staff/admin recorded payment with UUID `idempotencyKey`, decimal-string `amount`, method BANK_TRANSFER/CASH/CARD/OTHER, optional ISO `paidAt`, note and externalReference.
+- `POST /api/v1/invoices/:id/checkout`: scoped invoice balance checkout, UUID `idempotencyKey` only; amount is server-calculated. Redirect only on OPEN. `GET` returns the latest owned attempt plus reconciliation state. The success/cancel path is `/portal/invoices/:id`; a success query never establishes payment.
+- `POST /api/webhooks/stripe`: raw signed Stripe events; no cookie/Origin requirement. Test mode only. Pending reservations persist across uncertain responses and clear on verified terminal outcomes. Unexpected receipts remain separately recorded and visible for manual review.
+- `GET /api/v1/operations/billing`: admin heartbeat, billing failures, pending checkouts and receipt exceptions. `POST` with subscriptionId resets a billing retry. No exception-resolution/refund endpoint exists yet.
+- Cookie-authenticated mutations require an Origin matching BETTER_AUTH_URL. Errors use `{error: {code, message, fields?}}`; validation is 422, forbidden 403, missing/inaccessible resources 404 and conflicts 409.
+
+## Cross-team integration next
+
+Pranav proposes catalog/plan/template/discount/outbox models and server interfaces; Mathew reviews migrations and connects them to authoritative subscription/invoice transactions. Current manual quotations are ADMIN only. Do not enable STAFF quotation prices from arbitrary client input. Match product-specific discounts using stable product/variant references and apply tax only after allocating discounts to eligible lines; the current invoice calculator supports an invoice-wide amount only. Discount consumption/restoration must be atomic with invoice generation/cancellation.
+
+The billing worker stores durable due/retry state; it is not yet a generic notification queue. Coordinate an outbox/delivery job model before implementing invoice/reminder delivery, and enqueue within the invoice transaction. Lea owns document presentation and forms; Mathew owns protected download/action endpoints. The public demo is incomplete until these team integrations, real provider checks and the scale benchmark are finished.

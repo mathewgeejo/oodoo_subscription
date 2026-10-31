@@ -25,3 +25,14 @@ Final acceptance: complete admin/staff/customer workflows on desktop/mobile; no 
 ## Progress log
 
 - Done: role and handoff agreed. No UI implementation completed at baseline.
+- Shared backend now available from Mathew: authenticated roles/session, reset email flow, subscription lists/drafts/actions/renewals, invoices/balances/payment history, recorded payment actions, Stripe checkout/status, and admin billing/payment operations. Read PROJECT_PLAN.md's API handoff; all frontend tasks above remain Not started.
+- Current verification: backend unit/integration tests use PostgreSQL 17 and a local SMTP receiver, plus live Next.js API smoke checks. Stripe provider calls are simulated until keys are configured. No hosted site or finished design exists.
+
+## Concrete next frontend steps
+
+- Start with app shell/auth, then real invoice lists/details and subscription views. Keep API route handlers in Mathew/Pranav ownership. The placeholder homepage may be replaced; no existing design system needs preserving.
+- Implement `/reset-password` for reset-token form submission and `/portal/invoices/[id]` for Stripe return URLs. Request a reset using a same-origin redirectTo. After checkout, poll invoice/checkout status; display pending/exception states and redirect only when the attempt is OPEN with a URL. Use a fresh UUID per new payment attempt and retain it for retries.
+- Subscription actions expose plan permissions. Resume skips paused periods; renewal may report BILLING_PENDING until original-term invoices catch up. Show server validation/conflict messages and refresh the record rather than pretending an action succeeded.
+- Recorded payment creation is staff/admin only. Customer portal payment uses Checkout. Amounts are decimal strings; format them without losing cents through Number conversion on large values. Never trust URL success parameters or calculate authoritative tax/discount/balance in the browser.
+- Customer search/detail editing, catalog-backed staff quotations, invoice PDF/download/send and discount configuration/report APIs still need backend coordination. Temporary contract fixtures can unblock layout, but do not mark those flows complete until their real endpoints exist.
+- Admin operations expose pending checkouts and unexpected receipts. Build visibility first; do not add a pretend exception-resolution/refund action because that endpoint does not exist.
