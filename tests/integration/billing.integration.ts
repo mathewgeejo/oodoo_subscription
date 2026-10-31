@@ -9,6 +9,7 @@ import type { Actor } from "../../src/server/core/permissions";
 import { getInvoice, actOnInvoice, listInvoices } from "../../src/server/invoices/service";
 import { recordManualPayment } from "../../src/server/payments/manual";
 import { runBillingBatch } from "../../src/server/billing/worker";
+import { GET as readiness } from "../../src/app/api/ready/route";
 
 if (!process.env.TEST_DATABASE_URL || process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL || !new URL(process.env.TEST_DATABASE_URL).pathname.endsWith("_test")) throw new Error("Set matching DATABASE_URL and TEST_DATABASE_URL for a dedicated *_test database");
 let actor: Actor;
@@ -28,6 +29,7 @@ async function active(expiresAt = "2027-01-01T00:00:00Z") {
   return draft;
 }
 test("migration checks and admin bootstrap are enforced by the real database", async () => {
+  assert.equal((await readiness()).status, 200);
   await assert.rejects(() => db.user.create({data: {id: randomUUID(), name: "Bad email", email: `UPPER-${randomUUID()}@example.test`}}));
   await assert.rejects(() => provisionUser({name: "Second admin", email: `${randomUUID()}@example.test`, password: "TestPassword!"}), /administrator already exists/);
 });
