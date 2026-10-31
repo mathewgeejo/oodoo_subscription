@@ -31,3 +31,4 @@ Inspect repository and latest progress before proceeding. Finish foundation and 
 ## Progress log
 
 - Planning checkpoint: ownership, dependencies and acceptance criteria written. All implementation tasks initially Not started.
+- Foundation checkpoint: Next.js/React entrypoints, environment example, TypeScript configuration and liveness route added. Health-route test passes using tsx. Dependency installation/runtime checks are still in progress; no build run.
